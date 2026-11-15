@@ -62,6 +62,28 @@ pip install -r requirements.txt
 > directo (`import pygame`). Se usa porque publica ruedas para Python 3.15 en
 > Fedora 45. Si prefieres el pygame clásico, cambia `pygame-ce` por `pygame`.
 
+## Instalación en CachyOS
+
+CachyOS usa `pacman`. Usa el instalador incluido, que configura todo:
+
+```bash
+cd ~/syn
+./install-cachyos.sh
+```
+
+Esto hace lo siguiente:
+
+1. Instala los paquetes del sistema con `pacman` (`kitty`, `python`,
+   `python-pip`, `pipewire`, `pipewire-pulseaudio`).
+2. Crea el entorno virtual en `.venv` e instala las dependencias de Python.
+3. Crea los comandos `syn` y `syn-kitty` en `~/.local/bin`.
+4. Añade la transparencia a `~/.config/kitty/kitty.conf`
+   (`background_opacity 0.5`, `background_blur 10`).
+5. Añade un icono `SYN Reproductor de Música` al menú de aplicaciones.
+
+Si `~/.local/bin` no está en tu `PATH`, cierra y vuelve a abrir la terminal
+o ejecuta `source ~/.bashrc`.
+
 ## Arrancar
 
 El instalador crea el comando `syn`. Escríbelo en cualquier terminal:
@@ -180,6 +202,7 @@ syn/
 │   └── styles.tcss         # estilos de Textual
 ├── config.toml
 ├── install.sh
+├── install-cachyos.sh   # instalador para CachyOS (pacman)
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md
