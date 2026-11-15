@@ -188,7 +188,14 @@ class SynApp(App[None]):
         self._closing = True
         self.player.shutdown()
 
+    def on_key(self, event: events.Key) -> None:
+        if event.key == "q":
+            self.exit()
+
     async def action_quit(self) -> None:
+        # Debugging message - this will be shown in stderr if running in a terminal
+        import sys
+        print("Quit action triggered!", file=sys.stderr)
         self._closing = True
         self.player.shutdown()
         await super().action_quit()
