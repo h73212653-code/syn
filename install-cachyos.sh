@@ -7,7 +7,9 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-echo "==> Instalador de SYN para CachyOS"
+echo "=========================================="
+echo "   SYN - Instalador para CachyOS/Arch"
+echo "=========================================="
 
 # ------------------------------------------------------------------ 0. Requisitos
 if ! command -v pacman >/dev/null 2>&1; then
@@ -21,76 +23,89 @@ if [[ "$EUID" -eq 0 ]]; then
 fi
 
 # ------------------------------------------------------------------ 1. Paquetes del sistema
-echo "==> Instalando paquetes del sistema con pacman..."
+echo "==> [1/6] Instalando paquetes del sistema..."
 sudo pacman -S --needed --noconfirm \
     kitty \
     python \
     python-pip \
     pipewire \
-    pipewire-pulseaudio
+    pipewire-pulseaudio \
+    git \
+    libpulse \
+    base-devel
 
 # ------------------------------------------------------------------ 2. Entorno virtual
-if [[ ! -x "$ROOT/.venv/bin/python" ]]; then
-    echo "==> Creando entorno virtual en .venv"
+echo "==> [2/6] Configurando entorno de Python..."
+if [[ ! -d "$ROOT/.venv" ]]; then
+    echo "    Creando .venv..."
     python -m venv "$ROOT/.venv"
 fi
 
-echo "==> Actualizando pip"
+echo "    Actualizando pip e instalando dependencias..."
 "$ROOT/.venv/bin/python" -m pip install --upgrade pip --quiet
-
-echo "==> Instalando dependencias de Python"
-"$ROOT/.venv/bin/python" -m pip install -r "$ROOT/requirements.txt" --quiet
+"$ROOT/.venv/bin/python" -m pip install -r "$ROOT/requirements.txt"
 
 # ------------------------------------------------------------------ 3. Comandos syn / syn-kitty
+echo "==> [3/6] Creando lanzadores en ~/.local/bin..."
 mkdir -p "$HOME/.local/bin"
+# Aseguramos que los scripts en bin/ sean ejecutables
+chmod +x "$ROOT/bin/syn" "$ROOT/bin/syn-kitty"
 ln -sfn "$ROOT/bin/syn" "$HOME/.local/bin/syn"
 ln -sfn "$ROOT/bin/syn-kitty" "$HOME/.local/bin/syn-kitty"
 
-# ------------------------------------------------------------------ 4. PATH
-if ! grep -q "$HOME/.local/bin" "$HOME/.bashrc" 2>/dev/null; then
-    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
-    echo "==> Añadido ~/.local/bin al PATH en ~/.bashrc"
-fi
+# ------------------------------------------------------------------ 4. PATH (Bash y Zsh)
+echo "==> [4/6] Verificando PATH..."
+added_to_path=0
+for rcfile in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    if [[ -f "$rcfile" ]]; then
+        if ! grep -q "\.local/bin" "$rcfile"; then
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$rcfile"
+            echo "    Añadido PATH a $rcfile"
+            added_to_path=1
+        fi
+    fi
+done
 
-# ------------------------------------------------------------------ 5. Kitty: transparencia (opcional pero recomendada)
+# ------------------------------------------------------------------ 5. Kitty: transparencia
+echo "==> [5/6] Configurando Kitty..."
 KITTY_CONF="$HOME/.config/kitty/kitty.conf"
 mkdir -p "$(dirname "$KITTY_CONF")"
-
-if ! grep -qE '^background_opacity' "$KITTY_CONF" 2>/dev/null; then
-    {
-        echo ""
-        echo "# SYN: fondo transparente para ver el escritorio detrás del reproductor"
-        echo "background_opacity 0.5"
-        echo "background_blur 10"
-    } >> "$KITTY_CONF"
-    echo "==> Configurada transparencia en kitty.conf"
-else
-    echo "==> kitty.conf ya tiene background_opacity (déjalo así para el modo transparente)"
+if [[ ! -f "$KITTY_CONF" ]]; then
+    touch "$KITTY_CONF"
 fi
 
-# ------------------------------------------------------------------ 6. .desktop para menú de aplicaciones (opcional)
+if ! grep -qE '^background_opacity' "$KITTY_CONF"; then
+    echo "" >> "$KITTY_CONF"
+    echo "# SYN: fondo transparente" >> "$KITTY_CONF"
+    echo "background_opacity 0.7" >> "$KITTY_CONF"
+    echo "background_blur 10" >> "$KITTY_CONF"
+    echo "    Transparencia activada en kitty.conf"
+fi
+
+# ------------------------------------------------------------------ 6. .desktop
+echo "==> [6/6] Creando acceso directo en el menú..."
 DESKTOP_DIR="$HOME/.local/share/applications"
 mkdir -p "$DESKTOP_DIR"
-
 cat > "$DESKTOP_DIR/syn.desktop" <<EOF
 [Desktop Entry]
-Name=SYN Reproductor de Música
-Comment=Reproductor de música local para terminal (Kitty)
-Exec=kitty --class syn --title SYN --directory $ROOT $ROOT/bin/syn
-Icon=media-player-audio
-Terminal=true
+Name=SYN Reproductor
+Comment=Reproductor local TUI
+Exec=$HOME/.local/bin/syn-kitty
+Icon=multimedia-audio-player
+Terminal=false
 Type=Application
-Categories=Audio;AudioVideo;Player;
+Categories=Audio;Music;Player;
 EOF
 
+echo "=========================================="
+echo "   ✓ INSTALACIÓN COMPLETADA"
+echo "=========================================="
 echo ""
-echo "✓ SYN instalado."
+echo "  1. Recarga tu terminal:  source ~/.bashrc  (o abre una nueva)"
+echo "  2. Lanza el reproductor: syn"
+echo "     o en ventana nueva:   syn-kitty"
 echo ""
-echo "  Comando:      syn          (abre en la terminal actual)"
-echo "  Kitty nueva:  syn-kitty    (abre una ventana de Kitty dedicada)"
-echo "  Música:       edita $ROOT/config.toml si tu carpeta no es ~/Musica"
-echo ""
-echo "  Para el modo transparente pulsa la tecla 't' dentro de la app."
-echo ""
-echo "  Si ~/.local/bin no está en tu PATH, cierra y abre la terminal o ejecuta:"
-echo "    source ~/.bashrc"
+if (( added_to_path )); then
+    echo "  ¡IMPORTANTE!: Se ha actualizado tu PATH. Reinicia la terminal."
+fi
+echo "=========================================="

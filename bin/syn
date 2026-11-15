@@ -6,8 +6,10 @@ ROOT="$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/.." && pwd)
 PYTHON="$ROOT/.venv/bin/python"
 
 if [[ ! -x "$PYTHON" ]]; then
-    echo "SYN no está instalado todavía." >&2
-    echo "Ejecuta: $ROOT/install.sh" >&2
+    echo "SYN no está instalado todavía o el entorno virtual se ha movido." >&2
+    echo "Por favor, ejecuta el instalador de nuevo:" >&2
+    echo "  ./install-cachyos.sh    (si estás en CachyOS/Arch)" >&2
+    echo "  ./install.sh            (si estás en Fedora/Otros)" >&2
     exit 1
 fi
 
