@@ -4,6 +4,9 @@
   <img src="assets/SYN.png" alt="SYN Reproductor TUI" width="850">
 </p>
 
+### 🔗 Repositorio
+[https://github.com/h73212653-code/syn](https://github.com/h73212653-code/syn)
+
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10%2B-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/Textual-TUI-purple.svg" alt="Textual">
@@ -103,7 +106,40 @@ syn --music-dir ~/Música --no-recursive
 SYN_MUSIC_DIR=~/Música syn
 ```
 
-La búsqueda acepta **MP3, FLAC, WAV y OGG**. Las carátulas se extraen de las etiquetas del archivo (ID3/APIC, FLAC PICTURE, OGG METADATA_BLOCK_PICTURE).
+La búsqueda acepta **MP3, FLAC, WAV y OGG**. Las carátulas se extraen de las etiquetas del archivo.
+
+---
+
+## 📥 Guía: Cómo descargar música de YouTube
+
+Para descargar música y tenerla en tu biblioteca, la mejor herramienta es `yt-dlp`.
+
+### 📦 Paso 1: Instalar paquetes base
+**Arch Linux:**
+```bash
+sudo pacman -S --needed yt-dlp ffmpeg
+```
+**Fedora:**
+```bash
+sudo dnf install yt-dlp ffmpeg
+```
+**Debian/Ubuntu:**
+```bash
+sudo apt update && sudo apt install yt-dlp ffmpeg
+```
+
+### ⚙️ Paso 2: Instalar Deno (Obligatorio)
+YouTube bloquea las descargas si no detecta un entorno de JS.
+```bash
+curl -fsSL https://deno.land/install.sh | sh
+source ~/.bashrc
+```
+
+### 📁 Paso 3: Descarga
+```bash
+mkdir -p ~/Musica
+yt-dlp -x --audio-format mp3 --audio-quality 0 --embed-thumbnail --embed-metadata -P ~/Musica "URL_DEL_VIDEO"
+```
 
 ---
 
@@ -122,31 +158,12 @@ La búsqueda acepta **MP3, FLAC, WAV y OGG**. Las carátulas se extraen de las e
 
 ---
 
-## 📂 Estructura
+## 🔄 Actualizaciones
 
-```
-syn/
-├── assets/
-│   └── SYN.png             # Captura de pantalla oficial
-├── bin/
-│   ├── syn                 # Lanzador en terminal actual
-│   └── syn-kitty           # Abre ventana nueva de Kitty
-├── syn/
-│   ├── __init__.py
-│   ├── __main__.py         # Punto de entrada
-│   ├── app.py              # App, layout, atajos y estado
-│   ├── artwork.py          # Carátulas + generación de portadas
-│   ├── config.py           # TOML, entorno y CLI
-│   ├── library.py          # Escaneo y metadatos con mutagen
-│   ├── player.py           # Reproducción con pygame-ce
-│   ├── widgets.py          # Portada, lista y logo ASCII
-│   └── styles.tcss         # Estilos de Textual
-├── config.toml
-├── install.sh
-├── install-cachyos.sh      # Instalador para CachyOS (pacman)
-├── pyproject.toml
-├── requirements.txt
-└── README.md
+Para mantener SYN al día, ejecuta:
+```bash
+cd ~/syn
+./update.sh
 ```
 
 ---
@@ -154,6 +171,6 @@ syn/
 ## 🛠️ Problemas frecuentes
 
 - **No hay sonido:** comprueba que PipeWire/PulseAudio esté activo con `pactl info`.
-- **La portada sale con caracteres de bloque:** estás fuera de Kitty o el protocolo gráfico no está disponible. Abre con `syn-kitty`.
-- **No aparecen canciones:** revisa `music_dir` en `config.toml`, los permisos y que sean `.mp3`, `.flac`, `.wav` u `.ogg`.
-- **Fuente rara en el logo:** SYN solo usa caracteres Unicode de bloque; no necesita una Nerd Font.
+- **La portada sale mal:** abre con `syn-kitty`.
+- **No aparecen canciones:** revisa `music_dir` en `config.toml`.
+- **Fuente rara en el logo:** SYN usa caracteres Unicode de bloque; no necesita una Nerd Font.
