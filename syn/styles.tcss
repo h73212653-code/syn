@@ -1,0 +1,303 @@
+Screen {
+    layout: vertical;
+    background: #080a0f;
+    color: #cbd5e1;
+}
+
+#top {
+    height: 1fr;
+    width: 100%;
+    layout: horizontal;
+}
+
+#now-playing {
+    width: 39%;
+    min-width: 24;
+    height: 100%;
+    padding: 1 1 0 1;
+    background: #0b0e15;
+    border-right: solid #1e2633;
+}
+
+#cover-stage {
+    width: 100%;
+    height: 1fr;
+    align: center middle;
+}
+
+#cover-image {
+    width: 28;
+    height: 14;
+}
+
+#cover-meta {
+    width: 100%;
+    height: 3;
+    margin-top: 1;
+}
+
+.meta-label {
+    width: 100%;
+    height: 1;
+    content-align: center middle;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+#meta-title {
+    color: #f8fafc;
+    text-style: bold;
+}
+
+#meta-artist {
+    color: #67e8f9;
+}
+
+#meta-album {
+    color: #64748b;
+}
+
+#library-panel {
+    width: 1fr;
+    height: 100%;
+    padding: 1 2 1 2;
+    background: #080a0f;
+}
+
+#logo-title {
+    width: 100%;
+    height: 1;
+    color: #94a3b8;
+    text-align: center;
+    content-align: center middle;
+}
+
+#logo {
+    width: 100%;
+    height: auto;
+    color: #67e8f9;
+    text-align: center;
+    content-align: center top;
+}
+
+#library-heading {
+    width: 100%;
+    height: 1;
+    layout: horizontal;
+}
+
+#music-heading {
+    width: auto;
+    height: 1;
+    color: #e2e8f0;
+    text-style: bold;
+    content-align: left middle;
+}
+
+#track-count {
+    width: 1fr;
+    height: 1;
+    color: #475569;
+    text-align: right;
+    content-align: right middle;
+}
+
+#track-list {
+    width: 100%;
+    height: 1fr;
+    border: none;
+    padding: 0;
+    background: transparent;
+    scrollbar-size-vertical: 1;
+    scrollbar-color: #334155;
+    scrollbar-background: #080a0f;
+    scrollbar-corner-color: #080a0f;
+}
+
+#track-list:focus {
+    border: none;
+    background-tint: transparent;
+}
+
+#track-list > .option-list--option {
+    color: #94a3b8;
+    padding: 0 1;
+}
+
+#track-list > .option-list--option-highlighted {
+    color: #f8fafc;
+    background: #151d2b;
+    text-style: bold;
+}
+
+#track-list > .option-list--option-hover {
+    background: #101725;
+}
+
+#bottom {
+    height: 5;
+    width: 100%;
+    border-top: solid #1e2633;
+    padding: 1 2 0 2;
+    background: #090c12;
+    layout: vertical;
+}
+
+#progress-row {
+    width: 100%;
+    height: 1;
+    layout: horizontal;
+    align-vertical: middle;
+}
+
+#play-state {
+    width: 2;
+    height: 1;
+    color: #67e8f9;
+    content-align: center middle;
+}
+
+#time-elapsed {
+    width: 7;
+    height: 1;
+    color: #94a3b8;
+    content-align: right middle;
+}
+
+#progress-bar {
+    width: 1fr;
+    height: 1;
+    margin: 0 1;
+}
+
+#progress-bar > Bar {
+    width: 100%;
+    height: 1;
+}
+
+#progress-bar > Bar > .bar--bar {
+    color: #22d3ee;
+    background: #182133;
+}
+
+#progress-bar > Bar > .bar--complete {
+    color: #22d3ee;
+    background: #182133;
+}
+
+#time-total {
+    width: 7;
+    height: 1;
+    color: #94a3b8;
+    content-align: left middle;
+}
+
+#volume-label {
+    width: 10;
+    height: 1;
+    color: #94a3b8;
+    content-align: right middle;
+}
+
+#footer {
+    width: 100%;
+    height: 2;
+    color: #64748b;
+    content-align: center middle;
+    text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   Modo transparente (tecla t)
+   Usa el fondo por defecto del terminal. En Kitty se ve el escritorio si
+   background_opacity está activado en kitty.conf; en otros terminales hereda
+   la transparencia que tenga configurada el emulador.
+   -------------------------------------------------------------------------- */
+Screen.transparent {
+    background: ansi_default;
+}
+
+Screen.transparent #now-playing,
+Screen.transparent #library-panel,
+Screen.transparent #bottom {
+    background: ansi_default;
+}
+
+Screen.transparent #track-list,
+Screen.transparent #track-list > .option-list--option-highlighted,
+Screen.transparent #track-list > .option-list--option-hover {
+    background: ansi_default;
+}
+
+Screen.transparent #track-list {
+    scrollbar-background: ansi_default;
+    scrollbar-corner-color: ansi_default;
+}
+
+Screen.transparent #track-list > .option-list--option-highlighted {
+    color: #f8fafc;
+    text-style: bold underline;
+}
+
+Screen.transparent #progress-bar > Bar > .bar--bar,
+Screen.transparent #progress-bar > Bar > .bar--complete {
+    background: ansi_default;
+}
+
+/* --------------------------------------------------------------------------
+   Diálogo para elegir la carpeta de música (primera ejecución y tecla d)
+   -------------------------------------------------------------------------- */
+MusicDirScreen {
+    align: center middle;
+    background: #05070b;
+}
+
+#dir-dialog {
+    width: 66;
+    max-width: 92%;
+    height: auto;
+    padding: 1 2;
+    background: #0b0e15;
+    border: round #334155;
+}
+
+#dir-title {
+    width: 100%;
+    height: 1;
+    color: #f8fafc;
+    text-style: bold;
+    content-align: left middle;
+}
+
+#dir-help {
+    width: 100%;
+    height: auto;
+    margin: 1 0;
+    color: #94a3b8;
+}
+
+#dir-input {
+    width: 100%;
+    background: #080a0f;
+    border: tall #334155;
+}
+
+#dir-input:focus {
+    border: tall #67e8f9;
+}
+
+#dir-error {
+    width: 100%;
+    height: 1;
+    color: #f87171;
+}
+
+#dir-buttons {
+    width: 100%;
+    height: 3;
+    align-horizontal: right;
+}
+
+#dir-buttons Button {
+    margin-left: 1;
+}

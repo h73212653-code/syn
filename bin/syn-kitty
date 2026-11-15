@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Abre SYN en una ventana dedicada de Kitty.
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/.." && pwd)"
+
+if ! command -v kitty >/dev/null 2>&1; then
+    echo "Error: Kitty no está instalado." >&2
+    echo "En Fedora: sudo dnf install kitty" >&2
+    exit 1
+fi
+
+exec kitty \
+    --class syn \
+    --title SYN \
+    --directory "$ROOT" \
+    "$ROOT/bin/syn" "$@"

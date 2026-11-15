@@ -1,0 +1,7 @@
+# Configuración de SYN
+# Puedes sobrescribir estos valores con variables de entorno o argumentos CLI:
+#   SYN_MUSIC_DIR=~/otra-carpeta syn
+#   syn --music-dir ~/otra-carpeta --no-recursive
+
+music_dir = "~/Musica"
+recursive = true

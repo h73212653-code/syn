@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Lanzador local de SYN.
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/.." && pwd)"
+PYTHON="$ROOT/.venv/bin/python"
+
+if [[ ! -x "$PYTHON" ]]; then
+    echo "SYN no está instalado todavía." >&2
+    echo "Ejecuta: $ROOT/install.sh" >&2
+    exit 1
+fi
+
+if [[ -z "${KITTY_WINDOW_ID:-}" ]]; then
+    echo "Consejo: abre SYN dentro de Kitty para ver la portada en alta resolución." >&2
+    echo "         También puedes usar: $ROOT/bin/syn-kitty" >&2
+fi
+
+# Permite ejecutar `syn` desde cualquier carpeta, no solo desde la raíz del
+# proyecto. Sin esto, Python busca el paquete en el directorio actual.
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PYTHON" -m syn "$@"
