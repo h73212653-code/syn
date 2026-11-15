@@ -29,7 +29,7 @@ sudo pacman -S --needed --noconfirm \
     python \
     python-pip \
     pipewire \
-    pipewire-pulseaudio \
+    pipewire-pulse \
     git \
     libpulse \
     base-devel

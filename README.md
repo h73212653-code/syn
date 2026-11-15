@@ -74,7 +74,7 @@ cd ~/syn
 Esto hace lo siguiente:
 
 1. Instala los paquetes del sistema con `pacman` (`kitty`, `python`,
-   `python-pip`, `pipewire`, `pipewire-pulseaudio`).
+   `python-pip`, `pipewire`, `pipewire-pulse`).
 2. Crea el entorno virtual en `.venv` e instala las dependencias de Python.
 3. Crea los comandos `syn` y `syn-kitty` en `~/.local/bin`.
 4. Añade la transparencia a `~/.config/kitty/kitty.conf`
