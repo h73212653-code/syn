@@ -18,8 +18,11 @@ elif command -v apt-get >/dev/null 2>&1; then
     echo "==> Detectado Debian/Ubuntu (apt)"
     sudo apt-get update
     sudo apt-get install -y kitty python3 python3-pip python3-venv pipewire-audio-client-libraries git build-essential
+elif command -v dnf >/dev/null 2>&1; then
+    echo "==> Detectado Fedora/Nobara (dnf)"
+    sudo dnf install -y kitty python3 python3-pip pipewire pipewire-pulseaudio git @development-tools
 else
-    echo "!! No se detectó un gestor de paquetes conocido (pacman/apt)."
+    echo "!! No se detectó un gestor de paquetes conocido (pacman/apt/dnf)."
     echo "!! Asegúrate de tener instalados: kitty, python3, pip, y pipewire."
 fi
 
