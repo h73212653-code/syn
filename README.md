@@ -1,7 +1,8 @@
 # SYN 🎵
 
 <p align="center">
-  <img src="assets/SYN.png" alt="SYN Reproductor TUI" width="850">
+  <img src="assets/SYN.png" alt="SYN Reproductor TUI" width="420">
+  <img src="assets/syn2.png" alt="SYN Reproductor TUI" width="420">
 </p>
 
 ### 🔗 Repositorio
