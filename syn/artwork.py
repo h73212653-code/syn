@@ -236,3 +236,8 @@ def load_cover(track: Track) -> Image.Image:
         except (OSError, ValueError, Image.DecompressionBombError):
             pass
     return create_placeholder(track)
+
+
+def extract_cover_bytes(track: Track) -> bytes | None:
+    """Bytes de la carátula incrustada, sin decodificar la imagen."""
+    return _extract_embedded_cover(track.path)

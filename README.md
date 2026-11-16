@@ -161,6 +161,20 @@ yt-dlp -x --audio-format mp3 --audio-quality 0 --embed-thumbnail --embed-metadat
 
 ---
 
+## 🪟 Integración con el escritorio (MPRIS)
+
+SYN publica lo que suena por MPRIS2 con el nombre `org.mpris.MediaPlayer2.syn`,
+así que cualquier cliente compatible lo detecta solo, sin configuración:
+
+- **Dynamic Island** de KDE Plasma: título, artista, carátula y progreso.
+- Applet de medios de Plasma, widgets de escritorio y teclas multimedia.
+- `playerctl` y cualquier otro cliente MPRIS.
+
+Los controles de la isla funcionan de verdad: reproducir/pausar, siguiente,
+anterior, parar y volumen. Si el escritorio no tiene D-Bus, SYN sigue igual.
+
+---
+
 ## 🔄 Actualizaciones
 
 Para mantener SYN al día, ejecuta:
@@ -176,4 +190,7 @@ cd ~/syn
 - **No hay sonido:** comprueba que PipeWire/PulseAudio esté activo con `pactl info`.
 - **La portada sale mal:** abre con `syn-kitty`.
 - **No aparecen canciones:** revisa `music_dir` en `config.toml`.
+- **La isla o el applet no muestra SYN:** comprueba que solo hay una instancia
+  abierta y que `busctl --user list | grep mpris` muestra
+  `org.mpris.MediaPlayer2.syn`.
 - **Fuente rara en el logo:** SYN usa caracteres Unicode de bloque; no necesita una Nerd Font.

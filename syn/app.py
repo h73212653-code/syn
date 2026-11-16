@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from PIL import Image as PILImage
 from rich.markup import escape
@@ -18,6 +19,14 @@ from .artwork import create_placeholder, load_cover
 from .config import Config
 from .theme import ThemeManager
 from .library import Section, Track, scan_sections
+from .mpris import (
+    NO_TRACK,
+    MprisServer,
+    cached_art_url,
+    publish_artwork,
+    save_placeholder,
+    track_object_path,
+)
 from .player import PlaybackError, PlaybackState, Player
 from .widgets import CoverStage, TrackList, build_logo
 
@@ -93,7 +102,9 @@ class SynApp(App[None]):
         self.playing_track: Track | None = None
         self.playing_section: int | None = None
         self.player = Player()
+        self.mpris = MprisServer(self._on_mpris_action)
         self._cover_token = 0
+        self._cover_art_url = ""
         self._closing = False
         self._transparent = False
         self._lyrics_visible = False
@@ -155,6 +166,7 @@ class SynApp(App[None]):
             yield Static(FOOTER, id="footer")
 
     def on_mount(self) -> None:
+        self.mpris.start()
         self.set_interval(1.0, self._tick)
         self.query_one("#track-list", TrackList).focus()
         self._update_volume_ui()
@@ -205,6 +217,7 @@ class SynApp(App[None]):
 
     def on_unmount(self) -> None:
         self._closing = True
+        self.mpris.stop()
         self.player.shutdown()
 
     def on_key(self, event: events.Key) -> None:
@@ -213,6 +226,7 @@ class SynApp(App[None]):
 
     async def action_quit(self) -> None:
         self._closing = True
+        self.mpris.stop()
         self.player.shutdown()
         await super().action_quit()
 
@@ -312,6 +326,7 @@ class SynApp(App[None]):
             else f"{len(self.tracks)} canciones"
         )
         self._render_tabs()
+        self._prewarm_covers(section)
 
         if self.tracks:
             self._select_index(0, focus_list=focus_list)
@@ -391,10 +406,15 @@ class SynApp(App[None]):
         if focus_list:
             track_list.focus_index(index)
 
+        # La carátula queda lista antes de publicar la pista por MPRIS: así la
+        # isla no arranca su búsqueda en iTunes (1 s) ni muestra otra portada.
+        self._cover_art_url = publish_artwork(track)
         self._load_cover_async(track)
 
         if self._lyrics_visible:
             self._load_lyrics_async(track)
+
+        self._update_mpris()
 
     def _play_index(self, index: int) -> None:
         if not (0 <= index < len(self.tracks)):
@@ -453,6 +473,130 @@ class SynApp(App[None]):
             state_label.update("■")
             progress.gradient = self._active_gradient
             track_list.set_playback_state(None, paused=False)
+
+        self._update_mpris()
+
+    # ---------------------------------------------------------------- MPRIS
+    def _update_mpris(self) -> None:
+        """Publica el estado actual para la isla y el escritorio."""
+        if self._closing:
+            return
+
+        track = self.playing_track
+        if track is None and self.current_index is not None and self.tracks:
+            track = self.tracks[self.current_index]
+
+        state = self.player.state
+        status = {
+            PlaybackState.PLAYING: "Playing",
+            PlaybackState.PAUSED: "Paused",
+        }.get(state, "Stopped")
+
+        if track is None:
+            self.mpris.update(
+                title="",
+                artist="",
+                album="",
+                length=0.0,
+                track_id=NO_TRACK,
+                has_track=False,
+                status=status,
+                volume=self.player.effective_volume,
+                position=0.0,
+                can_next=False,
+                can_previous=False,
+                art_url="",
+            )
+            return
+
+        position = (
+            self.player.position()
+            if state is not PlaybackState.STOPPED
+            else 0.0
+        )
+        self.mpris.update(
+            title=track.title,
+            artist=track.artist,
+            album=track.album,
+            length=track.duration,
+            track_id=track_object_path(track),
+            status=status,
+            volume=self.player.effective_volume,
+            position=position,
+            has_track=True,
+            can_next=True,
+            can_previous=True,
+            art_url=self._cover_art_url,
+        )
+
+    def _on_mpris_action(self, action: str, value: Any = None) -> None:
+        """Llega desde el hilo de D-Bus; se reenvía al de la interfaz."""
+        if self._closing:
+            return
+        try:
+            self.call_from_thread(self._apply_mpris_action, action, value)
+        except RuntimeError:
+            pass
+
+    def _apply_mpris_action(self, action: str, value: Any = None) -> None:
+        if self._closing:
+            return
+
+        if action == "playpause":
+            self.action_toggle_playback()
+        elif action == "play":
+            if self.player.state is PlaybackState.PAUSED:
+                self.action_toggle_playback()
+            elif self.player.state is PlaybackState.STOPPED:
+                self.action_play_selected()
+        elif action == "pause":
+            if self.player.state is PlaybackState.PLAYING:
+                self.action_toggle_playback()
+        elif action == "stop":
+            self._stop_playback()
+        elif action == "next":
+            self._skip_playback(1)
+        elif action == "previous":
+            self._skip_playback(-1)
+        elif action == "volume" and value is not None:
+            self.player.set_volume(float(value))
+            self._update_volume_ui()
+
+        self._update_mpris()
+
+    def _skip_playback(self, delta: int) -> None:
+        """Siguiente/anterior dentro de la carpeta que está sonando."""
+        if self.playing_track is None or self.playing_section is None:
+            if self.tracks:
+                self._play_index(0)
+            return
+        if not (0 <= self.playing_section < len(self.sections)):
+            return
+
+        tracks = self.sections[self.playing_section].tracks
+        if not tracks:
+            return
+
+        try:
+            index = next(
+                i for i, item in enumerate(tracks)
+                if item is self.playing_track
+            )
+        except StopIteration:
+            index = -1
+
+        next_index = (index + delta) % len(tracks)
+        if self.playing_section == self.section_index:
+            self._select_index(next_index, focus_list=False)
+        self._start_playback(tracks[next_index], self.playing_section)
+
+    def _stop_playback(self) -> None:
+        self.player.stop()
+        self.playing_track = None
+        self.playing_section = None
+        self.query_one("#time-elapsed", Label).update("0:00")
+        self.query_one("#progress-bar", ProgressBar).update(progress=0)
+        self._set_state_ui(PlaybackState.STOPPED)
 
     def _selected_or_current_index(self) -> int | None:
         track_list = self.query_one("#track-list", TrackList)
@@ -641,6 +785,7 @@ class SynApp(App[None]):
             label.update("[#f0abfc]Mudo[/]")
         else:
             label.update(f"Vol {round(self.player.volume * 100)}%")
+        self.mpris.update(volume=self.player.effective_volume)
 
     def on_option_list_option_selected(
         self, event: OptionList.OptionSelected
@@ -673,6 +818,7 @@ class SynApp(App[None]):
         self.query_one("#time-total", Label).update(
             format_time(duration) if duration > 0 else "--:--"
         )
+        self.mpris.update(position=position)
 
     def _advance_playback(self) -> None:
         """Pasa a la siguiente pista de la carpeta que está sonando."""
@@ -699,6 +845,25 @@ class SynApp(App[None]):
         self._start_playback(tracks[next_index], self.playing_section)
 
     # -------------------------------------------------------------- artwork
+    def _prewarm_covers(self, section: Section) -> None:
+        """Prepara las carátulas de la carpeta visible en segundo plano."""
+        tracks = list(section.tracks)
+
+        def worker() -> None:
+            for item in tracks:
+                try:
+                    publish_artwork(item)
+                except Exception:
+                    continue
+
+        self.run_worker(
+            worker,
+            group="covers",
+            exclusive=True,
+            thread=True,
+            exit_on_error=False,
+        )
+
     def _load_cover_async(self, track: Track) -> None:
         self._cover_token += 1
         token = self._cover_token
@@ -708,8 +873,9 @@ class SynApp(App[None]):
                 artwork = load_cover(track)
             except Exception:
                 artwork = create_placeholder(track)
+            url = cached_art_url(track) or save_placeholder(track, artwork)
             try:
-                self.call_from_thread(self._apply_cover, token, artwork)
+                self.call_from_thread(self._apply_cover, token, artwork, url)
             except RuntimeError:
                 pass
 
@@ -731,7 +897,7 @@ class SynApp(App[None]):
             except Exception:
                 return
             try:
-                self.call_from_thread(self._apply_cover, token, artwork)
+                self.call_from_thread(self._apply_cover, token, artwork, "")
             except RuntimeError:
                 pass
 
@@ -743,7 +909,11 @@ class SynApp(App[None]):
             exit_on_error=False,
         )
 
-    def _apply_cover(self, token: int, artwork: PILImage.Image) -> None:
+    def _apply_cover(
+        self, token: int, artwork: PILImage.Image, art_url: str = ""
+    ) -> None:
         if self._closing or token != self._cover_token:
             return
         self.query_one("#cover-stage", CoverStage).set_artwork(artwork)
+        self._cover_art_url = art_url
+        self._update_mpris()

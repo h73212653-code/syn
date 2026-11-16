@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "syn-tui"
-version = "1.1.0"
+version = "1.2.0"
 description = "SYN, un reproductor de música local para terminal, optimizado para Kitty"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -15,6 +15,7 @@ dependencies = [
     "pygame-ce>=2.5",
     "pyfiglet>=1.0",
     "pillow>=10.3",
+    "jeepney>=0.9,<1",
 ]
 
 [project.scripts]

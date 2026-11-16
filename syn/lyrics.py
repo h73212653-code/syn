@@ -14,7 +14,7 @@ import urllib.request
 
 API_URL = "https://lrclib.net/api/get"
 TIMEOUT = 3.0
-USER_AGENT = "syn-tui/1.1.0 (reproductor local)"
+USER_AGENT = "syn-tui/1.2.0 (reproductor local)"
 
 
 def fetch_lyrics(artist: str, track: str) -> str | None:
