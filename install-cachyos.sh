@@ -95,6 +95,7 @@ Icon=multimedia-audio-player
 Terminal=false
 Type=Application
 Categories=Audio;Music;Player;
+StartupWMClass=syn
 EOF
 
 echo "=========================================="

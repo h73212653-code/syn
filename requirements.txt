@@ -1,5 +1,5 @@
 textual>=8.0,<9
-textual-image>=0.14,<1
+textual-image>=0.12,<1
 mutagen>=1.47
 pygame-ce>=2.5
 pyfiglet>=1.0

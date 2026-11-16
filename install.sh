@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Instalador universal de SYN (Arch/Debian/Fedora).
-# Instala dependencias, venv, y prepara los lanzadores.
+# Instalador universal de SYN (Arch/Fedora).
+# En Debian/Ubuntu delega en install-debian.sh, que conoce sus particularidades.
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,14 +10,15 @@ echo "=========================================="
 echo "   SYN - Instalador Universal"
 echo "=========================================="
 
+# Debian/Ubuntu tienen instalador propio, más cuidadoso con las versiones.
+if command -v apt-get >/dev/null 2>&1 && [[ -x "$ROOT/install-debian.sh" ]]; then
+    exec "$ROOT/install-debian.sh" "$@"
+fi
+
 # 1. Detectar gestor de paquetes
 if command -v pacman >/dev/null 2>&1; then
     echo "==> Detectado Arch/CachyOS (pacman)"
     sudo pacman -S --needed --noconfirm kitty python python-pip pipewire pipewire-pulse git base-devel
-elif command -v apt-get >/dev/null 2>&1; then
-    echo "==> Detectado Debian/Ubuntu (apt)"
-    sudo apt-get update
-    sudo apt-get install -y kitty python3 python3-pip python3-venv pipewire-audio-client-libraries git build-essential
 elif command -v dnf >/dev/null 2>&1; then
     echo "==> Detectado Fedora/Nobara (dnf)"
     sudo dnf install -y kitty python3 python3-pip pipewire pipewire-pulseaudio git @development-tools
@@ -61,11 +62,13 @@ mkdir -p "$DESKTOP_DIR"
 cat > "$DESKTOP_DIR/syn.desktop" <<EOF
 [Desktop Entry]
 Name=SYN Reproductor
+Comment=Reproductor local TUI
 Exec=$HOME/.local/bin/syn-kitty
 Icon=multimedia-audio-player
 Terminal=false
 Type=Application
-Categories=Audio;Music;
+Categories=Audio;Music;Player;
+StartupWMClass=syn
 EOF
 
 echo "=========================================="

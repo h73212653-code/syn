@@ -33,7 +33,17 @@ cd ~/syn
 ./install-cachyos.sh
 ```
 
-### 2. Fedora / Nobara / Debian / Ubuntu (Universal)
+### 2. Debian / Ubuntu / Linux Mint / Pop!_OS
+```bash
+git clone https://github.com/h73212653-code/syn.git ~/syn
+cd ~/syn
+./install-debian.sh
+```
+Necesitas **Debian 12+** o **Ubuntu 24.04+** (Python 3.11 o superior).
+El instalador detecta tu versión, instala lo que falte con `apt`, crea el
+entorno virtual y comprueba al final que SYN arranca.
+
+### 3. Fedora / Nobara (Universal)
 ```bash
 git clone https://github.com/h73212653-code/syn.git ~/syn
 cd ~/syn
@@ -43,6 +53,44 @@ cd ~/syn
 ---
 
 ## 📋 Guía Detallada de Instalación por Distro
+
+### Instalación en Debian / Ubuntu
+El instalador hace todo, pero si prefieres ver los requisitos:
+```bash
+sudo apt update
+sudo apt install python3 python3-venv python3-pip kitty git
+```
+Luego:
+```bash
+cd ~/syn
+./install-debian.sh
+```
+
+Opciones útiles:
+```bash
+./install-debian.sh --sin-kitty   # si ya usas otra terminal
+./install-debian.sh --sin-apt     # si gestionas los paquetes tú
+```
+
+| Distro | Python | Estado |
+| :--- | :--- | :--- |
+| Debian 13 (trixie) | 3.13 | ✅ Probado |
+| Debian 12 (bookworm) | 3.11 | ✅ Probado |
+| Ubuntu 24.04 LTS | 3.12 | ✅ Probado |
+| Ubuntu 22.04 LTS | 3.11 | ✅ Probado (desde `universe`) |
+| Linux Mint 22 / Pop!_OS 24.04 | 3.12 | ✅ Compatible |
+| Debian 11 / Ubuntu 20.04 | 3.9 / 3.8 | ❌ Python antiguo (ver abajo) |
+
+> En Python 3.11 se instala `textual-image` 0.12, la última versión compatible
+> con esa versión de Python. Las carátulas funcionan igual; en 3.12+ se usa 0.14.
+
+Si tu Python es más antiguo que 3.11, el instalador te avisa y no rompe nada.
+Para arreglarlo en Ubuntu 22.04 o Debian 12 con un Python más nuevo:
+```bash
+sudo add-apt-repository ppa:deadsnakes/ppa   # solo Ubuntu
+sudo apt update && sudo apt install python3.12 python3.12-venv
+./install-debian.sh
+```
 
 ### Instalación en Fedora / Nobara
 Requisitos del sistema:
@@ -188,6 +236,18 @@ cd ~/syn
 ## 🛠️ Problemas frecuentes
 
 - **No hay sonido:** comprueba que PipeWire/PulseAudio esté activo con `pactl info`.
+- **En Ubuntu 22.04 el instalador dice que Python es antiguo:** esa versión trae
+  Python 3.10 y SYN necesita 3.11+. Instala uno más nuevo:
+  ```bash
+  sudo add-apt-repository ppa:deadsnakes/ppa
+  sudo apt update && sudo apt install python3.12 python3.12-venv
+  ./install-debian.sh
+  ```
+- **`error: externally-managed-environment` al usar pip:** es la protección de
+  Debian/Ubuntu. No instales con `pip` del sistema; usa `./install-debian.sh`,
+  que crea un entorno virtual propio en `.venv`.
+- **`syn-kitty` dice que Kitty no está instalado:** `sudo apt install kitty`
+  (o `sudo dnf install kitty`).
 - **La portada sale mal:** abre con `syn-kitty`.
 - **No aparecen canciones:** revisa `music_dir` en `config.toml`.
 - **La isla o el applet no muestra SYN:** comprueba que solo hay una instancia

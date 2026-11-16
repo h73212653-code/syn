@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.3.0 — 2026-11-16
+
+### Nuevas funciones
+- **Instalador para Debian y Ubuntu** (`install-debian.sh`): detecta la versión
+  de la distro, comprueba que Python sea 3.11 o superior, instala lo que falte
+  con `apt`, crea el entorno virtual y verifica al final que SYN arranca.
+  Probado en Debian 13, Debian 12, Ubuntu 24.04 y Ubuntu 22.04.
+- Opciones `--sin-kitty` (si ya usas otra terminal) y `--sin-apt` (si gestionas
+  los paquetes a mano).
+- Si falta un paquete opcional en tu versión de la distro, avisa y continúa en
+  vez de abortar.
+
+### Correcciones
+- `textual-image` se pedía en `>=0.14`, que exige Python 3.12; en Debian 12 y
+  Ubuntu 22.04 (Python 3.11) la instalación fallaba. Ahora el rango es
+  `>=0.12,<1` y pip elige la versión adecuada para cada Python.
+- `install.sh` delega en el instalador de Debian/Ubuntu cuando detecta `apt`,
+  para no mantener dos rutas distintas.
+
+### Mejoras
+- El acceso directo `.desktop` incluye `StartupWMClass=syn`, así el dock y la
+  Dynamic Island asocian la ventana con la aplicación.
+- README: sección de Debian/Ubuntu con tabla de versiones probadas.
+
 ## 1.2.0 — 2026-11-16
 
 ### Nuevas funciones
