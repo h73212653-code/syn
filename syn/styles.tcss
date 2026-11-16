@@ -1,13 +1,9 @@
-Screen {
-    layout: vertical;
-    background: #080a0f;
-    color: #cbd5e1;
+.transparent {
+    background: transparent !important;
 }
 
-#top {
-    height: 1fr;
-    width: 100%;
-    layout: horizontal;
+Screen.transparent {
+    background: transparent !important;
 }
 
 #now-playing {
@@ -17,6 +13,10 @@ Screen {
     padding: 1 1 0 1;
     background: #0b0e15;
     border-right: solid #1e2633;
+}
+
+.transparent #now-playing {
+    background: transparent !important;
 }
 
 #cover-stage {
@@ -100,6 +100,17 @@ Screen {
     color: #475569;
     text-align: right;
     content-align: right middle;
+}
+
+#folder-tabs {
+    width: 100%;
+    height: 1;
+    color: #94a3b8;
+    content-align: left middle;
+}
+
+#folder-tabs.hidden {
+    display: none;
 }
 
 #track-list {
@@ -209,39 +220,21 @@ Screen {
 
 /* --------------------------------------------------------------------------
    Modo transparente (tecla t)
-   Usa el fondo por defecto del terminal. En Kitty se ve el escritorio si
-   background_opacity está activado en kitty.conf; en otros terminales hereda
-   la transparencia que tenga configurada el emulador.
    -------------------------------------------------------------------------- */
-Screen.transparent {
-    background: ansi_default;
+/* Solo aplicamos transparencia cuando la clase existe en el objeto raíz */
+.transparent,
+.transparent Container,
+.transparent Static,
+.transparent #now-playing,
+.transparent #library-panel,
+.transparent #bottom,
+.transparent #track-list {
+    background: transparent !important;
 }
 
-Screen.transparent #now-playing,
-Screen.transparent #library-panel,
-Screen.transparent #bottom {
-    background: ansi_default;
-}
-
-Screen.transparent #track-list,
-Screen.transparent #track-list > .option-list--option-highlighted,
-Screen.transparent #track-list > .option-list--option-hover {
-    background: ansi_default;
-}
-
-Screen.transparent #track-list {
-    scrollbar-background: ansi_default;
-    scrollbar-corner-color: ansi_default;
-}
-
-Screen.transparent #track-list > .option-list--option-highlighted {
-    color: #f8fafc;
-    text-style: bold underline;
-}
-
-Screen.transparent #progress-bar > Bar > .bar--bar,
-Screen.transparent #progress-bar > Bar > .bar--complete {
-    background: ansi_default;
+.transparent #progress-bar > Bar > .bar--bar,
+.transparent #progress-bar > Bar > .bar--complete {
+    background: transparent !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -300,4 +293,24 @@ MusicDirScreen {
 
 #dir-buttons Button {
     margin-left: 1;
+}
+.transparent #lyrics-panel {
+    background: transparent !important;
+}
+
+#lyrics-panel {
+    display: block;
+    width: 100%;
+    height: 1fr;
+    min-height: 5;
+    background: #0b0e15;
+    color: #e2e8f0;
+    padding: 1 3;
+    overflow-y: auto;
+    text-align: center;
+    border-top: solid #1e2633;
+}
+
+#lyrics-panel.hidden {
+    display: none;
 }

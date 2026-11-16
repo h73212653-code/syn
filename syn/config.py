@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PROJECT_CONFIG = PROJECT_ROOT / "config.toml"
 
@@ -70,6 +70,7 @@ class Config:
 
     music_dir: Path
     recursive: bool = True
+    theme_index: int = 0
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -116,7 +117,8 @@ def load_config(argv: Sequence[str] | None = None) -> Config:
         music_dir = _default_music_dir()
 
     recursive = bool(values.get("recursive", True))
+    theme_index = int(values.get("theme_index", 0))
     if args.no_recursive:
         recursive = False
 
-    return Config(music_dir=music_dir, recursive=recursive)
+    return Config(music_dir=music_dir, recursive=recursive, theme_index=theme_index)

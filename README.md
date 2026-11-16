@@ -152,6 +152,8 @@ yt-dlp -x --audio-format mp3 --audio-quality 0 --embed-thumbnail --embed-metadat
 | `Enter` | Reproducir la pista seleccionada |
 | `Espacio` | Pausar / reanudar |
 | `n` / `p` | Siguiente / anterior |
+| `←` / `→` | Cambiar de carpeta (pestañas automáticas) |
+| `l` | Mostrar / ocultar la letra de la canción |
 | `y` / `u` | Subir / bajar el volumen (5%) |
 | `m` | Silenciar / restaurar sonido |
 | `t` | Activar / desactivar fondo transparente |

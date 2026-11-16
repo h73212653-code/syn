@@ -35,6 +35,14 @@ class Track:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class Section:
+    """Grupo de pistas: normalmente una subcarpeta de la carpeta de música."""
+
+    name: str
+    tracks: list[Track]
+
+
 def _first_tag(value: object) -> str:
     """Normaliza los valores que mutagen devuelve como listas o strings."""
     if value is None:
@@ -141,3 +149,84 @@ def scan_library(root: Path, recursive: bool = True) -> list[Track]:
 
     tracks.sort(key=lambda track: track.sort_key)
     return tracks
+
+
+def _collect_tracks(root: Path, recursive: bool) -> list[Track]:
+    """Lee y ordena las pistas de una carpeta concreta."""
+    tracks: list[Track] = []
+    seen: set[Path] = set()
+
+    for path in _iter_audio_paths(root, recursive):
+        try:
+            resolved = path.resolve()
+        except OSError:
+            resolved = path
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        try:
+            tracks.append(_read_track(path))
+        except OSError:
+            continue
+
+    tracks.sort(key=lambda track: track.sort_key)
+    return tracks
+
+
+def _direct_files(root: Path) -> list[Track]:
+    """Pistas que están sueltas en ``root``, sin entrar en subcarpetas."""
+    tracks: list[Track] = []
+    try:
+        entries = sorted(root.iterdir(), key=lambda item: item.name.casefold())
+    except OSError:
+        return tracks
+
+    for path in entries:
+        if (
+            path.is_file()
+            and not path.name.startswith(".")
+            and path.suffix.lower() in AUDIO_EXTENSIONS
+        ):
+            try:
+                tracks.append(_read_track(path))
+            except OSError:
+                continue
+
+    tracks.sort(key=lambda track: track.sort_key)
+    return tracks
+
+
+def scan_sections(root: Path, recursive: bool = True) -> list[Section]:
+    """Agrupa la música por subcarpeta de primer nivel.
+
+    Cada subcarpeta visible de ``root`` se convierte en una sección. Las
+    pistas sueltas directamente en ``root`` van en una sección con el nombre
+    de la propia carpeta. Las secciones vacías se omiten.
+    """
+    root = root.expanduser()
+    if not root.is_dir():
+        return []
+
+    try:
+        folders = sorted(
+            (
+                item
+                for item in root.iterdir()
+                if item.is_dir() and not item.name.startswith(".")
+            ),
+            key=lambda item: item.name.casefold(),
+        )
+    except OSError:
+        folders = []
+
+    sections: list[Section] = []
+    for folder in folders:
+        tracks = _collect_tracks(folder, recursive)
+        if tracks:
+            sections.append(Section(folder.name, tracks))
+
+    root_tracks = _direct_files(root)
+    if root_tracks:
+        sections.insert(0, Section(root.name, root_tracks))
+
+    return sections
