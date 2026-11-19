@@ -19,6 +19,8 @@ Reproductor de música local ultraligero y elegante para la terminal, construido
 
 - 🖼️ **Protocolo Gráfico Nativo (TGP):** Carátulas en alta resolución directamente en tu terminal.
 - 🎵 **Soporte Universal:** MP3, FLAC, WAV y OGG con extracción de metadatos mediante **Mutagen**.
+- 🔎 **Búsqueda global:** pulsa `/` y filtra por título, artista, álbum o carpeta sin importar dónde esté la canción.
+- 🎤 **Letras sincronizadas:** con `l` se resalta la línea que suena y el panel se desplaza solo (si la versión coincide).
 - ⚡ **Alto Rendimiento:** Consumo mínimo de CPU y RAM, con repintado inteligente bajo demanda.
 - 🎨 **Modo Transparente:** Integración perfecta con fondos translúcidos y difuminados de Kitty.
 
@@ -197,6 +199,9 @@ yt-dlp -x --audio-format mp3 --audio-quality 0 --embed-thumbnail --embed-metadat
 | Tecla | Acción |
 | :--- | :--- |
 | `↑` / `↓` o `k` / `j` | Navegar por la lista |
+| `/` | Buscar en toda la música (título, artista, álbum o carpeta) |
+| `Ctrl+F` | Abrir la búsqueda (alternativa a `/`, útil según el teclado) |
+| `Esc` | Cerrar la búsqueda y volver a la carpeta |
 | `Enter` | Reproducir la pista seleccionada |
 | `Espacio` | Pausar / reanudar |
 | `n` / `p` | Siguiente / anterior |
@@ -206,6 +211,20 @@ yt-dlp -x --audio-format mp3 --audio-quality 0 --embed-thumbnail --embed-metadat
 | `m` | Silenciar / restaurar sonido |
 | `t` | Activar / desactivar fondo transparente |
 | `q` | Salir |
+
+### 🔎 Búsqueda
+
+Pulsa `/` en cualquier momento y escribe. SYN busca a la vez en **todas las
+carpetas** y muestra los resultados según coincidan con el título, el artista,
+el álbum o el nombre de la carpeta:
+
+- No importan los acentos: `cancion` encuentra «Canción».
+- Varias palabras funcionan como filtros: `daft discovery` acota a ese álbum.
+- `Enter` salta de la barra a los resultados para moverte con `↑`/`↓` y
+  reproducir con `Enter`.
+- `Esc` cierra la búsqueda y te devuelve a la carpeta donde estabas.
+- Mientras escribes, el logo deja su sitio para que quepan más resultados.
+- Si tu teclado escribe `/` con `Mayús+7` y no responde, usa `Ctrl+F`.
 
 ---
 

@@ -113,6 +113,37 @@ Screen.transparent {
     display: none;
 }
 
+/* Barra de búsqueda (tecla /) */
+#search-input {
+    width: 100%;
+    height: 3;
+    margin: 0 0 1 0;
+    background: #0f1520;
+    border: tall #334155;
+    color: #e2e8f0;
+}
+
+#search-input:focus {
+    border: tall #67e8f9;
+}
+
+#search-input > .input--placeholder {
+    color: #64748b;
+}
+
+#search-input.hidden {
+    display: none;
+}
+
+/* Mientras buscas, el logo deja sitio a los resultados */
+#library-panel.searching #logo {
+    display: none;
+}
+
+#library-panel.searching #folder-tabs {
+    display: none;
+}
+
 #track-list {
     width: 100%;
     height: 1fr;
@@ -228,7 +259,8 @@ Screen.transparent {
 .transparent #now-playing,
 .transparent #library-panel,
 .transparent #bottom,
-.transparent #track-list {
+.transparent #track-list,
+.transparent #search-input {
     background: transparent !important;
 }
 

@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.4.0 — 2026-11-19
+
+### Nuevas funciones
+- **Letras sincronizadas**: si LRCLIB tiene la letra con tiempos, el panel
+  resalta la línea que está sonando, deja las anteriores y las siguientes en
+  tonos apagados y se desplaza solo. Si la duración de la versión de LRCLIB no
+  coincide con la que suena (slowed, sped up, otra edición), se muestra la
+  letra sin tiempos: mejor sin resaltar que desincronizada.
+- **Búsqueda global** (tecla `/`): filtra toda la biblioteca por título,
+  artista, álbum o carpeta, sin distinguir mayúsculas ni acentos. Los
+  resultados se ordenan por coincidencia (primero las que empiezan por lo
+  escrito) y `Esc` vuelve a la carpeta anterior.
+- Al buscar, el logo se oculta para dejar más sitio a la lista y las pestañas
+  de carpeta desaparecen, porque los resultados pueden venir de cualquiera.
+- `Ctrl+F` abre la búsqueda igual que `/`, por si la distribución del teclado
+  no envía la barra.
+
+### Correcciones
+- La tecla `/` no abría la búsqueda en teclados donde `/` se escribe con
+  `Mayús+7` (español, alemán…) si la terminal usa el protocolo de teclado de
+  Kitty: la pulsación llegaba como `shift+7` y el atajo no se reconocía. Ahora
+  se aceptan todas las variantes y `Ctrl+F` funciona siempre como alternativa.
+
+### Mejoras
+- El pie de ayuda se reparte en dos líneas fijas, así no queda una palabra
+  suelta ni se corta al añadir atajos.
+- Reproducir una pista encontrada por la búsqueda ya avanza por **su** carpeta
+  real (antes se habría quedado anclada a la carpeta visible).
+- Las letras se guardan en caché y las búsquedas a LRCLIB fallan en silencio
+  si no hay red, así que nunca bloquean la reproducción.
+
 ## 1.3.0 — 2026-11-16
 
 ### Nuevas funciones

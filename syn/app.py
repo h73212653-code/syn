@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import unicodedata
+from bisect import bisect_right
 from pathlib import Path
 from typing import Any
 
@@ -13,10 +15,11 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Gradient
 from textual.containers import Container, Horizontal
-from textual.widgets import Label, OptionList, ProgressBar, Static
+from textual.widgets import Input, Label, OptionList, ProgressBar, Static
 
 from .artwork import create_placeholder, load_cover
 from .config import Config
+from .lyrics import LyricLine, Lyrics, fetch_lyrics_data
 from .theme import ThemeManager
 from .library import Section, Track, scan_sections
 from .mpris import (
@@ -33,12 +36,13 @@ from .widgets import CoverStage, TrackList, build_logo
 FOOTER = (
     "[b #67e8f9]Espacio[/] [#94a3b8]pausa[/]  "
     "[b #f0abfc]Enter[/] [#94a3b8]reproducir[/]  "
-    "[b #67e8f9]n/p[/] [#94a3b8]cambiar[/]  "
-    "[b #f0abfc]←/→[/] [#94a3b8]carpeta[/]  "
+    "[b #67e8f9]n/p[/] [#94a3b8]pista[/]  "
+    "[b #f0abfc]←/→[/] [#94a3b8]carpeta[/]\n"
     "[b #67e8f9]y/u[/] [#94a3b8]volumen[/]  "
     "[b #f0abfc]m[/] [#94a3b8]mudo[/]  "
     "[b #f0abfc]t[/] [#94a3b8]fondo[/]  "
     "[b #f0abfc]l[/] [#94a3b8]letras[/]  "
+    "[b #67e8f9]/[/] [#94a3b8]buscar[/]  "
     "[b #67e8f9]q[/] [#94a3b8]salir[/]"
 )
 
@@ -61,6 +65,43 @@ def format_time(seconds: float | None) -> str:
     if hours:
         return f"{hours}:{minutes:02d}:{secs:02d}"
     return f"{minutes}:{secs:02d}"
+
+
+def _fold(text: str) -> str:
+    """Minúsculas y sin acentos: «cancion» también encuentra «Canción».
+
+    La normalización va antes y después de ``casefold`` para que también
+    funcionen letras «decorativas» de YouTube (𝙋𝘼𝙎𝘼 → pasa) y la I turca.
+    """
+    decomposed = unicodedata.normalize("NFKD", text).casefold()
+    decomposed = unicodedata.normalize("NFKD", decomposed)
+    return "".join(char for char in decomposed if not unicodedata.combining(char))
+
+
+def _search_score(track: Track, folder: str, terms: list[str]) -> int | None:
+    """Puntúa una pista para la búsqueda; ``None`` si no coincide.
+
+    Cuanto menor es el número, más arriba sale: primero las que empiezan
+    por lo escrito, luego las que lo contienen en el título, el artista o
+    el álbum/carpeta.
+    """
+    title = _fold(track.title)
+    artist = _fold(track.artist)
+    album = _fold(track.album)
+    haystack = f"{title} {artist} {album} {folder}"
+    if not all(term in haystack for term in terms):
+        return None
+
+    phrase = " ".join(terms)
+    if title.startswith(phrase):
+        return 0
+    if phrase in title:
+        return 1
+    if phrase in artist:
+        return 2
+    if phrase in album or phrase in folder:
+        return 3
+    return 4
 
 
 class SynApp(App[None]):
@@ -86,6 +127,9 @@ class SynApp(App[None]):
         Binding("m", "toggle_mute", "Silenciar", show=False),
         Binding("t", "toggle_transparency", "Transparencia", show=False),
         Binding("l", "toggle_lyrics", "Letras", show=True),
+        Binding("slash", "search", "Buscar", show=True),
+        Binding("ctrl+f", "search", "Buscar", show=False),
+        Binding("escape", "close_search", "Cerrar búsqueda", show=False),
         Binding("q", "quit", "Salir", show=False),
     ]
 
@@ -109,6 +153,17 @@ class SynApp(App[None]):
         self._transparent = False
         self._lyrics_visible = False
         self._lyrics_token = 0
+        self._lyrics_plain = ""
+        self._lyrics_synced: tuple[LyricLine, ...] = ()
+        self._lyrics_times: list[float] = []
+        self._lyrics_index = -2  # -2 = aún sin pintar
+        self._lyrics_instrumental = False
+        self._lyrics_track_path: Path | None = None
+        self._lyrics_cache: dict[tuple[str, str], Lyrics | None] = {}
+        self._search_active = False
+        self._search_section = 0
+        self._track_sections: dict[int, int] = {}
+        self._primary_color = "#a78bfa"
         self.theme_manager = ThemeManager(config.theme_index)
         self._active_gradient = Gradient.from_colors(*self.theme_manager.get_current().gradient)
         self._paused_gradient = Gradient.from_colors("#334155", "#64748b")
@@ -146,6 +201,11 @@ class SynApp(App[None]):
                 with Horizontal(id="library-heading"):
                     yield Static("Música →", id="music-heading")
                     yield Static("Buscando…", id="track-count")
+                yield Input(
+                    placeholder="Buscar título, artista o carpeta…",
+                    id="search-input",
+                    classes="hidden",
+                )
                 yield Static("", id="folder-tabs", classes="hidden")
                 yield TrackList(id="track-list")
                 yield Static("", id="lyrics-panel", classes="hidden")
@@ -191,6 +251,7 @@ class SynApp(App[None]):
 
     def on_resize(self, event: events.Resize) -> None:
         self.call_after_refresh(self._update_logo)
+        self.call_after_refresh(self._refresh_lyrics)
 
     def _update_logo(self) -> None:
         """Elige el logo más grande que quepa en el panel derecho."""
@@ -220,9 +281,29 @@ class SynApp(App[None]):
         self.mpris.stop()
         self.player.shutdown()
 
+    # Con el protocolo de teclado de Kitty, en un teclado español «/» es
+    # Mayús+7 y llega como «shift+7» sin carácter: el binding «slash» no se
+    # dispara. Se aceptan todas las formas en que puede llegar la tecla.
+    SEARCH_KEYS = frozenset({"slash", "shift+7", "divide", "kp_divide"})
+
     def on_key(self, event: events.Key) -> None:
+        # Mientras se escribe en el buscador, «q» es una letra más.
+        if isinstance(self.focused, Input):
+            return
         if event.key == "q":
             self.exit()
+            return
+        if event.key in self.SEARCH_KEYS or event.character == "/":
+            event.stop()
+            self.action_search()
+
+    def check_action(
+        self, action: str, parameters: tuple[object, ...]
+    ) -> bool | None:
+        """Desactiva los atajos de una tecla mientras se escribe la búsqueda."""
+        if isinstance(self.focused, Input):
+            return action in {"search", "close_search", "quit"}
+        return True
 
     async def action_quit(self) -> None:
         self._closing = True
@@ -262,6 +343,11 @@ class SynApp(App[None]):
             return
 
         self.sections = sections
+        self._track_sections = {
+            id(track): index
+            for index, section in enumerate(sections)
+            for track in section.tracks
+        }
         self.section_index = 0
         self._render_tabs()
 
@@ -353,6 +439,8 @@ class SynApp(App[None]):
     def _change_section(self, delta: int) -> None:
         if len(self.sections) < 2:
             return
+        if self._search_active:
+            self._close_search()
         index = (self.section_index + delta) % len(self.sections)
         self._select_section(index, focus_list=False)
         self.query_one("#track-list", TrackList).focus()
@@ -380,6 +468,86 @@ class SynApp(App[None]):
         progress.update(total=1, progress=0)
         progress.gradient = self._active_gradient
         self.sub_title = "Reproductor local"
+
+    # -------------------------------------------------------------- búsqueda
+    def action_search(self) -> None:
+        """Abre la barra de búsqueda global (tecla ``/``)."""
+        if not self.sections:
+            self.notify("La biblioteca aún se está cargando", timeout=3)
+            return
+
+        search = self.query_one("#search-input", Input)
+        if not self._search_active:
+            self._search_active = True
+            self._search_section = self.section_index
+            self.query_one("#library-panel", Container).add_class("searching")
+            search.remove_class("hidden")
+        search.focus()
+        search.cursor_position = len(search.value)
+
+    def action_close_search(self) -> None:
+        self._close_search()
+
+    def _close_search(self) -> None:
+        """Cierra el buscador y vuelve a la carpeta en la que estabas."""
+        if not self._search_active:
+            return
+        self._search_active = False
+        search = self.query_one("#search-input", Input)
+        search.value = ""
+        search.add_class("hidden")
+        self.query_one("#library-panel", Container).remove_class("searching")
+        self._select_section(self._search_section, focus_list=True)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "search-input":
+            self._filter_tracks(event.value)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id != "search-input":
+            return
+        event.stop()
+        self.query_one("#track-list", TrackList).focus()
+
+    def _filter_tracks(self, query: str) -> None:
+        """Muestra todas las pistas de la biblioteca que coinciden."""
+        if not self._search_active:
+            return  # el valor se limpia al cerrar; no pisar la carpeta
+
+        terms = _fold(query).split()
+        track_list = self.query_one("#track-list", TrackList)
+        count = self.query_one("#track-count", Static)
+
+        if not terms:
+            self.tracks = []
+            self.current_index = None
+            track_list.set_tracks([])
+            count.update("Escribe para buscar")
+            self._refresh_playback_marker()
+            return
+
+        scored: list[tuple[int, tuple[str, str, str, str], Track]] = []
+        for section in self.sections:
+            folder = _fold(section.name)
+            for track in section.tracks:
+                score = _search_score(track, folder, terms)
+                if score is not None:
+                    scored.append((score, track.sort_key, track))
+        scored.sort(key=lambda item: (item[0], item[1]))
+
+        self.tracks = [item[2] for item in scored]
+        self.current_index = None
+        track_list.set_tracks(self.tracks)
+        count.update(
+            "1 resultado"
+            if len(self.tracks) == 1
+            else f"{len(self.tracks)} resultados"
+        )
+        self._refresh_playback_marker()
+
+        if self.tracks:
+            self._select_index(0, focus_list=False)
+            self._prewarm_tracks(self.tracks[:12])
 
     # ------------------------------------------------------------- playback
     def _select_index(self, index: int, *, focus_list: bool) -> None:
@@ -420,8 +588,9 @@ class SynApp(App[None]):
         if not (0 <= index < len(self.tracks)):
             return
 
+        track = self.tracks[index]
         self._select_index(index, focus_list=True)
-        self._start_playback(self.tracks[index], self.section_index)
+        self._start_playback(track, self._section_of(track))
 
     def _start_playback(self, track: Track, section_index: int) -> None:
         try:
@@ -439,13 +608,29 @@ class SynApp(App[None]):
         self._set_state_ui(PlaybackState.PLAYING)
 
     def _playing_index_in_visible(self) -> int | None:
-        """Índice de la pista sonando dentro de la carpeta visible, si está."""
-        if self.playing_track is None or self.playing_section != self.section_index:
+        """Índice de la pista sonando dentro de la lista visible, si está."""
+        if self.playing_track is None:
             return None
         for index, track in enumerate(self.tracks):
             if track is self.playing_track:
                 return index
         return None
+
+    def _section_of(self, track: Track) -> int:
+        """Carpeta a la que pertenece una pista (también desde la búsqueda)."""
+        index = self._track_sections.get(id(track))
+        if index is not None:
+            return index
+        for index, section in enumerate(self.sections):
+            if any(item is track for item in section.tracks):
+                return index
+        return self.section_index
+
+    def _sync_visible_selection(self) -> None:
+        """Selecciona en la lista la pista que acaba de empezar a sonar."""
+        index = self._playing_index_in_visible()
+        if index is not None and index != self.current_index:
+            self._select_index(index, focus_list=False)
 
     def _refresh_playback_marker(self) -> None:
         """Vuelve a marcar la pista en reproducción tras cambiar de carpeta."""
@@ -586,9 +771,8 @@ class SynApp(App[None]):
             index = -1
 
         next_index = (index + delta) % len(tracks)
-        if self.playing_section == self.section_index:
-            self._select_index(next_index, focus_list=False)
         self._start_playback(tracks[next_index], self.playing_section)
+        self._sync_visible_selection()
 
     def _stop_playback(self) -> None:
         self.player.stop()
@@ -679,6 +863,7 @@ class SynApp(App[None]):
 
         self.query_one("#footer", Static).update(FOOTER_ON)
         lyrics_panel.remove_class("hidden")
+        self.call_after_refresh(self._refresh_lyrics)
 
         if self.current_index is None or not self.tracks:
             lyrics_panel.update("Selecciona una canción para ver su letra.")
@@ -692,20 +877,27 @@ class SynApp(App[None]):
         self._lyrics_token += 1
         token = self._lyrics_token
 
+        cache_key = (track.artist.casefold(), track.title.casefold())
+        if cache_key in self._lyrics_cache:
+            self._apply_lyrics(token, track, self._lyrics_cache[cache_key])
+            return
+
         if self._lyrics_visible:
             self.query_one("#lyrics-panel", Static).update(
                 f"Buscando letra de\n{escape(track.title)}…"
             )
 
         def worker() -> None:
-            from .lyrics import fetch_lyrics
-
             try:
-                lyrics = fetch_lyrics(track.artist, track.title)
+                lyrics = fetch_lyrics_data(
+                    track.artist, track.title, track.duration
+                )
             except Exception:
                 lyrics = None
             try:
-                self.call_from_thread(self._apply_lyrics, token, track, lyrics)
+                self.call_from_thread(
+                    self._store_lyrics, token, cache_key, track, lyrics
+                )
             except RuntimeError:
                 pass
 
@@ -717,8 +909,21 @@ class SynApp(App[None]):
             exit_on_error=False,
         )
 
+    def _store_lyrics(
+        self,
+        token: int,
+        cache_key: tuple[str, str],
+        track: Track,
+        lyrics: Lyrics | None,
+    ) -> None:
+        # Cache pequeña y acotada: LRCLIB es gratuito y no conviene abusar.
+        if len(self._lyrics_cache) >= 64:
+            self._lyrics_cache.clear()
+        self._lyrics_cache[cache_key] = lyrics
+        self._apply_lyrics(token, track, lyrics)
+
     def _apply_lyrics(
-        self, token: int, track: Track, lyrics: str | None
+        self, token: int, track: Track, lyrics: Lyrics | None
     ) -> None:
         if self._closing or token != self._lyrics_token:
             return
@@ -726,15 +931,109 @@ class SynApp(App[None]):
             return
 
         panel = self.query_one("#lyrics-panel", Static)
-        if lyrics:
+
+        self._lyrics_plain = (lyrics.plain if lyrics else None) or ""
+        self._lyrics_synced = lyrics.synced if lyrics else ()
+        self._lyrics_instrumental = bool(lyrics and lyrics.instrumental)
+        self._lyrics_times = [line.time for line in self._lyrics_synced]
+        self._lyrics_index = -2
+        self._lyrics_track_path = track.path
+
+        if self._lyrics_synced:
+            position = (
+                self._current_position() if self._lyrics_match_playing() else 0.0
+            )
+            self._render_synced_lyrics(position)
+            return
+
+        if self._lyrics_plain:
             # Text() evita que Rich interprete corchetes de la propia letra.
-            panel.update(Text(lyrics))
-        else:
+            panel.update(Text(self._lyrics_plain))
+            return
+
+        if self._lyrics_instrumental:
             panel.update(
-                "[#64748b]No hay letra disponible para[/]\n"
+                "[#64748b]Canción instrumental[/]\n"
                 f"[b]{escape(track.title)}[/]\n"
                 f"[#94a3b8]{escape(track.artist)}[/]"
             )
+            return
+
+        panel.update(
+            "[#64748b]No hay letra disponible para[/]\n"
+            f"[b]{escape(track.title)}[/]\n"
+            f"[#94a3b8]{escape(track.artist)}[/]"
+        )
+
+    # --------------------------------------------------------------- letras
+    def _current_position(self) -> float:
+        """Posición actual del reproductor, nunca negativa."""
+        try:
+            return max(0.0, self.player.position())
+        except Exception:
+            return 0.0
+
+    def _lyrics_match_playing(self) -> bool:
+        """¿La letra cargada es la de la canción que suena?"""
+        return (
+            self.playing_track is not None
+            and self._lyrics_track_path is not None
+            and self._lyrics_track_path == self.playing_track.path
+        )
+
+    def _lyrics_window_size(self, panel: Static) -> int:
+        """Cuántas líneas caben en el panel, con margen para líneas largas."""
+        try:
+            height = panel.content_size.height
+        except Exception:
+            height = 0
+        if height <= 0:
+            height = 12
+        return max(3, min(17, height - 2))
+
+    def _refresh_lyrics(self) -> None:
+        """Repinta la ventana de letra (al mostrarla o al cambiar el tamaño)."""
+        if not self._lyrics_visible or not self._lyrics_synced:
+            return
+        self._lyrics_index = -2
+        position = self._current_position() if self._lyrics_match_playing() else 0.0
+        self._render_synced_lyrics(position)
+
+    def _render_synced_lyrics(self, position: float) -> None:
+        """Pinta una ventana de líneas centrada en la que está sonando."""
+        lines = self._lyrics_synced
+        if not lines:
+            return
+
+        index = bisect_right(self._lyrics_times, position) - 1
+        # En los silencios LRC suele haber líneas vacías: mantener resaltada
+        # la última línea con texto se lee mejor que resaltar un hueco.
+        while index >= 0 and not lines[index].text:
+            index -= 1
+        if index == self._lyrics_index:
+            return  # misma línea: no hay nada que repintar
+        self._lyrics_index = index
+
+        panel = self.query_one("#lyrics-panel", Static)
+        visible = self._lyrics_window_size(panel)
+        half = visible // 2
+        start = min(max(0, index - half), max(0, len(lines) - visible))
+        end = min(len(lines), start + visible)
+
+        text = Text()
+        for i in range(start, end):
+            line = lines[i]
+            if i == index:
+                style = f"bold {self._primary_color}"
+            elif i < index:
+                style = "#475569"
+            else:
+                style = "#94a3b8"
+            # Una línea vacía conserva el ritmo vertical de la canción.
+            text.append(line.text or " ", style=style)
+            if i != end - 1:
+                text.append("\n")
+        panel.update(text)
 
     def _apply_theme(self) -> None:
         """Aplica el tema actual a los elementos de la interfaz."""
@@ -749,6 +1048,7 @@ class SynApp(App[None]):
         # Colores de elementos basados en el tema
         primary_color = theme.gradient[0]
         secondary_color = theme.gradient[1]
+        self._primary_color = primary_color
         
         self.query_one("#meta-artist", Label).styles.color = primary_color
         self.query_one("#play-state", Label).styles.color = primary_color
@@ -820,6 +1120,13 @@ class SynApp(App[None]):
         )
         self.mpris.update(position=position)
 
+        if (
+            self._lyrics_visible
+            and self._lyrics_synced
+            and self._lyrics_match_playing()
+        ):
+            self._render_synced_lyrics(position)
+
     def _advance_playback(self) -> None:
         """Pasa a la siguiente pista de la carpeta que está sonando."""
         if self.playing_track is None or self.playing_section is None:
@@ -840,17 +1147,20 @@ class SynApp(App[None]):
             index = -1
 
         next_index = (index + 1) % len(tracks)
-        if self.playing_section == self.section_index:
-            self._select_index(next_index, focus_list=False)
         self._start_playback(tracks[next_index], self.playing_section)
+        self._sync_visible_selection()
 
     # -------------------------------------------------------------- artwork
     def _prewarm_covers(self, section: Section) -> None:
         """Prepara las carátulas de la carpeta visible en segundo plano."""
-        tracks = list(section.tracks)
+        self._prewarm_tracks(section.tracks)
+
+    def _prewarm_tracks(self, tracks: list[Track]) -> None:
+        """Prepara carátulas de una lista corta (carpeta o resultados)."""
+        pending = list(tracks)
 
         def worker() -> None:
-            for item in tracks:
+            for item in pending:
                 try:
                     publish_artwork(item)
                 except Exception:
