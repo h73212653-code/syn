@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import unicodedata
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -30,12 +32,14 @@ from typing import Any
 API_URL = "https://lrclib.net/api/get"
 SEARCH_URL = "https://lrclib.net/api/search"
 TIMEOUT = 3.0
-USER_AGENT = "syn-tui/1.4.0 (reproductor local)"
+USER_AGENT = "syn-tui/1.4.1 (reproductor local)"
 
 # Diferencia de duración tolerada antes de desconfiar de los tiempos.
 MAX_DURATION_DRIFT = 0.06
 # Similitud mínima del título para aceptar un resultado de búsqueda.
 MIN_TITLE_RATIO = 0.75
+# Cuando el artista solo se deduce del propio título, se exige más parecido.
+MIN_INFERRED_RATIO = 0.90
 
 # [mm:ss], [mm:ss.xx], [mm:ss.xxx] y también [mm:ss:xx].
 _TIMESTAMP = re.compile(r"\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]")
@@ -56,6 +60,14 @@ _FEAT = re.compile(
     r"\s*[-–—]?\s*\b(feat\.?|ft\.?|featuring)\b.*$", re.IGNORECASE
 )
 _INSTRUMENTAL = re.compile(r"\b(instrumental|karaoke|sin voz)\b", re.IGNORECASE)
+# «Artista A, Artista B & Artista C feat. D» → varios nombres.
+_ARTIST_SPLIT = re.compile(
+    r"\s*[,&]\s*|\s+/\s+|\bfeat\.?\b|\bft\.?\b|\s+x\s+", re.IGNORECASE
+)
+# «Tema - Artista» o «Artista - Tema» (con guion, en dash o em dash).
+_DASHES = re.compile(r"\s*[-–—]\s*")
+# Etiquetas tipo «[Slowed]», «(Official Video)», «{Remix}».
+_BRACKETS = re.compile(r"[\(\[\{][^\)\]\}]*[\)\]\}]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,7 +154,7 @@ def _lookup(artist: str, track: str, duration: float) -> Any | None:
     # En una canción instrumental, buscar la versión con voz daría letras que
     # no suenan en el archivo.
     if _INSTRUMENTAL.search(track):
-        return None
+        return {"instrumental": True}
 
     cleaned = clean_title(track)
     if cleaned and cleaned.casefold() != track.casefold():
@@ -150,7 +162,7 @@ def _lookup(artist: str, track: str, duration: float) -> Any | None:
         if data is not None:
             return data
 
-    return _search_best(cleaned or track, artist, duration)
+    return _search_best(track, artist, duration)
 
 
 def clean_title(title: str) -> str:
@@ -169,8 +181,34 @@ def _normalise(text: str) -> str:
 
 
 def _artist_tokens(artist: str) -> set[str]:
-    parts = re.split(r"[,&/]|\bfeat\.?\b|\bft\.?\b", _normalise(artist))
-    return {part for part in parts if len(part) > 2}
+    # Se separa antes de normalizar: si no, las comas desaparecen y
+    # «Maroon 5, Wiz Khalifa» quedaría como un único nombre imposible de casar.
+    tokens = {_normalise(part) for part in _ARTIST_SPLIT.split(artist)}
+    return {token for token in tokens if len(token) > 2}
+
+
+def _title_variants(title: str) -> list[str]:
+    """Formas de buscar un título descargado de YouTube.
+
+    «COQUETA - Fuerza Regida» se prueba entero y por partes, y las etiquetas
+    entre corchetes se ignoran. Así se encuentra la canción aunque el nombre
+    del canal esté mezclado con el del artista o con «[Slowed + Reverb]».
+    """
+    base = clean_title(title)
+    candidates = [base, _BRACKETS.sub(" ", base)]
+    for text in list(candidates):
+        candidates.extend(_DASHES.split(text))
+
+    variants: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        candidate = re.sub(r"\s+", " ", candidate).strip(" -–—")
+        key = _normalise(candidate)
+        if len(key) < 3 or key in seen:
+            continue
+        seen.add(key)
+        variants.append(candidate)
+    return variants[:6]
 
 
 def _get(artist: str, track: str) -> Any | None:
@@ -189,25 +227,65 @@ def _search(query: str) -> list[dict[str, Any]]:
 def _search_best(title: str, artist: str, duration: float) -> dict[str, Any] | None:
     """Elige un resultado solo si título y artista se parecen de verdad.
 
-    La comprobación del artista es lo que evita enseñar la letra de otra
-    canción con el mismo título.
+    El título puede traer el artista mezclado (nombre del canal de YouTube,
+    «Tema - Artista»), así que se compara contra el título completo y contra
+    sus partes. Cuanta menos evidencia hay del artista, más alto se exige el
+    parecido del título para no enseñar la letra de otra canción.
     """
-    results = _search(f"{title} {artist}") or _search(title)
-    if not results:
+    variants = _title_variants(title)
+    if not variants:
         return None
 
-    mine = _artist_tokens(artist)
-    wanted = _normalise(title)
+    wanted = [_normalise(variant) for variant in variants]
+    own = _artist_tokens(artist)
+    inferred: set[str] = set()
+    for variant in variants[1:]:
+        if len(variant.split()) >= 2:
+            inferred |= _artist_tokens(variant)
+
+    queries: list[str] = []
+    for query in [f"{variants[0]} {artist}", *variants]:
+        if query and query not in queries:
+            queries.append(query)
+
+    results: list[dict[str, Any]] = []
+    seen: set[tuple[Any, ...]] = set()
+    for query in queries:
+        for item in _search(query):
+            key = (
+                item.get("id"),
+                item.get("trackName"),
+                item.get("artistName"),
+                item.get("duration"),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append(item)
+
     best: dict[str, Any] | None = None
     best_score = 0.0
 
     for item in results:
-        ratio = SequenceMatcher(
-            None, wanted, _normalise(str(item.get("trackName") or ""))
-        ).ratio()
-        if ratio < MIN_TITLE_RATIO:
+        their_title = _normalise(str(item.get("trackName") or ""))
+        ratio = max(
+            (
+                SequenceMatcher(None, wanted_title, their_title).ratio()
+                for wanted_title in wanted
+            ),
+            default=0.0,
+        )
+        theirs = _artist_tokens(str(item.get("artistName") or ""))
+
+        if own & theirs:
+            needed = MIN_TITLE_RATIO
+        elif inferred & theirs:
+            needed = MIN_INFERRED_RATIO
+        else:
+            # Sin ninguna pista del artista no se arriesga: mejor no enseñar
+            # letra que enseñar la de otra canción con el mismo título.
             continue
-        if not (mine & _artist_tokens(str(item.get("artistName") or ""))):
+        if ratio < needed:
             continue
 
         score = ratio
@@ -228,14 +306,22 @@ def _request_json(url: str) -> Any | None:
         url,
         headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
     )
-    try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-            if response.status != 200:
-                return None
-            payload = response.read().decode("utf-8", errors="replace")
-        return json.loads(payload)
-    except Exception:
-        return None
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+                if response.status != 200:
+                    return None
+                payload = response.read().decode("utf-8", errors="replace")
+            return json.loads(payload)
+        except urllib.error.HTTPError as exc:
+            # LRCLIB limita las peticiones seguidas: una espera corta y reintento.
+            if exc.code == 429 and attempt == 0:
+                time.sleep(0.8)
+                continue
+            return None
+        except Exception:
+            return None
+    return None
 
 
 def _build_lyrics(data: dict[str, Any], duration: float) -> Lyrics | None:

@@ -29,9 +29,9 @@ class Player:
     así evitamos condiciones de carrera al cambiar de pista.
     """
 
-    def __init__(self, volume: float = 0.82) -> None:
+    def __init__(self, volume: float = 1.0) -> None:
         self._volume = max(0.0, min(1.0, volume))
-        self._last_volume = self._volume or 0.82
+        self._last_volume = self._volume if self._volume > 0 else 1.0
         self._muted = False
         self._initialized = False
         self._current: Path | None = None

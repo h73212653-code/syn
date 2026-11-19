@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.4.1 — 2026-11-19
+
+### Correcciones
+- **Canciones sin letra aunque LRCLIB la tuviera**: la búsqueda descartaba las
+  descargas de YouTube cuyo artista es el nombre del canal, las que llevan
+  varios artistas en la etiqueta («Maroon 5, Wiz Khalifa») o las que traen el
+  artista dentro del título («COQUETA - Fuerza Regida»). Ahora los artistas se
+  separan bien, el título se prueba entero y por partes y, si hace falta, se
+  deduce el artista del propio título. En una biblioteca de prueba se pasa de
+  10 a 15 canciones con letra.
+- Los títulos marcados como instrumentales muestran «Canción instrumental» en
+  vez de «no hay letra disponible».
+- Si LRCLIB limita las peticiones (HTTP 429), se reintenta una vez tras una
+  espera corta en lugar de darse por vencido.
+
+### Mejoras
+- El volumen arranca al **100 %** (antes 82 %). Con `u` y `y` se baja o sube
+  de 5 en 5, y `m` sigue silenciando.
+
 ## 1.4.0 — 2026-11-19
 
 ### Nuevas funciones

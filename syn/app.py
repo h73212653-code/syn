@@ -222,7 +222,7 @@ class SynApp(App[None]):
                     gradient=self._active_gradient,
                 )
                 yield Label("--:--", id="time-total")
-                yield Label("Vol 82%", id="volume-label")
+                yield Label("Vol 100%", id="volume-label")
             yield Static(FOOTER, id="footer")
 
     def on_mount(self) -> None:
@@ -960,7 +960,7 @@ class SynApp(App[None]):
             return
 
         panel.update(
-            "[#64748b]No hay letra disponible para[/]\n"
+            "[#64748b]LRCLIB no tiene la letra de[/]\n"
             f"[b]{escape(track.title)}[/]\n"
             f"[#94a3b8]{escape(track.artist)}[/]"
         )

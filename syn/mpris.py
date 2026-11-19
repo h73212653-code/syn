@@ -226,7 +226,7 @@ class MprisServer:
         self._art_url = ""
         self._track_id = NO_TRACK
         self._status = "Stopped"
-        self._volume = 0.82
+        self._volume = 1.0
         self._position = 0.0
         self._position_at = time.monotonic()
         self._has_track = False
