@@ -1,0 +1,47 @@
+// SYN — integración con niri (Wayland)
+//
+// Lo instala ./setup-niri.sh en ~/.config/niri/syn.kdl y se incluye desde
+// config.kdl. Puedes editar este archivo a tu gusto.
+
+window-rule {
+    // syn-kitty abre Kitty con --class syn, así que ese es su app-id.
+    match app-id=r#"^syn$"#
+
+    // Un reproductor se lleva mejor flotando que en mosaico.
+    // Quita esta línea si prefieres que se abra como columna.
+    open-floating true
+
+    // Tamaño inicial, proporcional a la pantalla.
+    // Cámbialo por { fixed 1100; } / { fixed 720; } si quieres píxeles.
+    default-column-width { proportion 0.6; }
+    default-window-height { proportion 0.75; }
+
+    // Sin esto niri pinta el borde con fondo y la transparencia de Kitty
+    // (background_opacity) se ve opaca. Es el ajuste clave en niri.
+    draw-border-with-background false
+
+    // Blur real del compositor detrás de la ventana (niri 26.04+).
+    // Requiere en kitty.conf: background_opacity 0.75 (o similar).
+    // En niri < 26.04 esta sección no existe: bórrala y el blur lo aplicará
+    // el propio Kitty solo si el compositor soporta org_kde_kwin_blur.
+    background-effect {
+        blur true
+        noise 0.02
+        saturation 1.0
+    }
+
+    // Opcional: ventana limpia, sin borde ni sombra.
+    // focus-ring { off }
+    // border { off }
+    // shadow { off }
+}
+
+// Teclas multimedia por MPRIS. Descomenta si no las tienes ya en niri.
+// Necesita playerctl (paquete `playerctl`).
+//
+// binds {
+//     XF86AudioPlay { spawn "playerctl" "play-pause"; }
+//     XF86AudioStop { spawn "playerctl" "stop"; }
+//     XF86AudioNext { spawn "playerctl" "next"; }
+//     XF86AudioPrev { spawn "playerctl" "previous"; }
+// }

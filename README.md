@@ -242,6 +242,36 @@ anterior, parar y volumen. Si el escritorio no tiene D-Bus, SYN sigue igual.
 
 ---
 
+## 🌊 niri + DMS (transparencia y blur)
+
+SYN se ve translúcido y con el fondo desenfocado en niri 26.04 o superior.
+Todo se configura con un comando:
+
+```bash
+./setup-niri.sh
+```
+
+El script hace tres cosas y puedes repetirlo sin miedo:
+
+1. Copia `niri/syn.kdl` a `~/.config/niri/syn.kdl` y lo incluye desde tu
+   `config.kdl`.
+2. Pone `background_opacity 0.75` en `~/.config/kitty/kitty.conf` si estaba a
+   `1.0` (opaco).
+3. Valida la configuración con `niri validate`.
+
+La regla de niri usa `background-effect { blur true }`, que es el blur real del
+compositor, y `draw-border-with-background false`, sin el cual niri pinta un
+rectángulo opaco detrás de la ventana y la transparencia no se ve.
+
+Después cierra **todas** las ventanas de Kitty y vuelve a abrir con `syn-kitty`:
+la opacidad se lee al arrancar cada ventana.
+
+Si usas una versión de niri anterior a 26.04, borra el bloque
+`background-effect` de `~/.config/niri/syn.kdl`; la transparencia seguirá
+funcionando, solo que sin desenfoque.
+
+---
+
 ## 🔄 Actualizaciones
 
 Para mantener SYN al día, ejecuta:

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
-APP_VERSION = "1.4.1"
+APP_VERSION = "1.4.2"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PROJECT_CONFIG = PROJECT_ROOT / "config.toml"
 

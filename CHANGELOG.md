@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.2 — 2026-11-20
+
+### Nuevas funciones
+- **Transparencia con blur en niri**: nuevo `setup-niri.sh` que instala la
+  regla de ventana de SYN, activa `background_opacity 0.75` en Kitty y valida
+  la configuración con `niri validate`. En niri 26.04+ el desenfoque lo hace el
+  compositor con `background-effect { blur true }`; antes no existía y la
+  ventana solo podía ser translúcida.
+
+### Correcciones
+- La regla de niri para SYN ya no se queda sin instalar: se incluye
+  explícitamente desde `config.kdl`.
+
 ## 1.4.1 — 2026-11-19
 
 ### Correcciones
