@@ -56,7 +56,20 @@ if ! grep -qE '^background_opacity' "$KITTY_CONF" 2>/dev/null; then
     echo -e "\n# SYN: transparencia\nbackground_opacity 0.7" >> "$KITTY_CONF"
 fi
 
-# 6. .desktop
+# 6. Icono y acceso directo
+echo "==> [6/6] Instalando icono y acceso directo..."
+ICON_DIR="$HOME/.local/share/icons/hicolor"
+mkdir -p "$ICON_DIR/scalable/apps"
+cp "$ROOT/assets/icon-syn.svg" "$ICON_DIR/scalable/apps/syn.svg"
+for size in 16 24 32 48 64 128 256 512; do
+    mkdir -p "$ICON_DIR/${size}x${size}/apps"
+    cp "$ROOT/assets/icons/hicolor/${size}x${size}/apps/syn.png" \
+       "$ICON_DIR/${size}x${size}/apps/syn.png"
+done
+command -v gtk-update-icon-cache >/dev/null 2>&1 \
+    && gtk-update-icon-cache -f -t "$ICON_DIR" >/dev/null 2>&1 || true
+
+# 7. .desktop
 DESKTOP_DIR="$HOME/.local/share/applications"
 mkdir -p "$DESKTOP_DIR"
 cat > "$DESKTOP_DIR/syn.desktop" <<EOF
@@ -64,7 +77,7 @@ cat > "$DESKTOP_DIR/syn.desktop" <<EOF
 Name=SYN Reproductor
 Comment=Reproductor local TUI
 Exec=$HOME/.local/bin/syn-kitty
-Icon=multimedia-audio-player
+Icon=syn
 Terminal=false
 Type=Application
 Categories=Audio;Music;Player;

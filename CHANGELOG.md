@@ -3,6 +3,9 @@
 ## 1.4.2 — 2026-11-20
 
 ### Nuevas funciones
+- **Icono propio**: `assets/icon-syn.svg` (vectorial) y sus versiones PNG de
+  16 a 512 px. El `.desktop` ya usa `Icon=syn`, así que SYN deja de aparecer con
+  el icono genérico de reproductor en el menú y en el dock.
 - **Transparencia con blur en niri**: nuevo `setup-niri.sh` que instala la
   regla de ventana de SYN, activa `background_opacity 0.75` en Kitty y valida
   la configuración con `niri validate`. En niri 26.04+ el desenfoque lo hace el
