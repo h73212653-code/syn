@@ -1,0 +1,23 @@
+pkgbase = syn-tui
+	pkgdesc = Reproductor de música local para terminal, optimizado para Kitty
+	pkgver = 1.4.2
+	pkgrel = 1
+	url = https://github.com/h73212653-code/syn
+	arch = any
+	license = MIT
+	makedepends = python-build
+	makedepends = python-installer
+	makedepends = python-hatchling
+	depends = python
+	depends = python-textual
+	depends = python-textual-image
+	depends = python-mutagen
+	depends = python-pygame-ce
+	depends = python-pyfiglet
+	depends = python-pillow
+	depends = python-jeepney
+	depends = kitty
+	source = https://github.com/h73212653-code/syn/archive/v1.4.2/syn-1.4.2.tar.gz
+	sha256sums = 30e9d882a06e08e227f6b4e2eab1c866787552f2fa02ae6a656a109ebed3dfe6
+
+pkgname = syn-tui

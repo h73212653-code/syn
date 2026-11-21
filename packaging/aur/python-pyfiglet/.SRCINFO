@@ -1,0 +1,16 @@
+pkgbase = python-pyfiglet
+	pkgdesc = Pure-python FIGlet implementation
+	pkgver = 1.0.4
+	pkgrel = 1
+	url = https://github.com/pwaller/pyfiglet
+	arch = any
+	license = MIT
+	makedepends = python-build
+	makedepends = python-installer
+	makedepends = python-setuptools
+	makedepends = python-wheel
+	depends = python
+	source = https://files.pythonhosted.org/packages/source/p/pyfiglet/pyfiglet-1.0.4.tar.gz
+	sha256sums = db9c9940ed1bf3048deff534ed52ff2dafbbc2cd7610b17bb5eca1df6d4278ef
+
+pkgname = python-pyfiglet

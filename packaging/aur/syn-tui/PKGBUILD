@@ -1,0 +1,56 @@
+# Maintainer: synestrio <h73212653@users.noreply.github.com>
+pkgname=syn-tui
+pkgver=1.4.2
+pkgrel=1
+pkgdesc="Reproductor de música local para terminal, optimizado para Kitty"
+arch=('any')
+url="https://github.com/h73212653-code/syn"
+license=('MIT')
+depends=(
+  'python'
+  'python-textual'
+  'python-textual-image'
+  'python-mutagen'
+  'python-pygame-ce'
+  'python-pyfiglet'
+  'python-pillow'
+  'python-jeepney'
+  'kitty'
+)
+makedepends=('python-build' 'python-installer' 'python-hatchling')
+source=("$url/archive/v$pkgver/syn-$pkgver.tar.gz")
+sha256sums=('30e9d882a06e08e227f6b4e2eab1c866787552f2fa02ae6a656a109ebed3dfe6')
+
+build() {
+  cd "syn-$pkgver"
+  python -m build --wheel --no-isolation
+}
+
+package() {
+  cd "syn-$pkgver"
+  python -m installer --destdir="$pkgdir" dist/*.whl
+
+  install -Dm644 assets/icon-syn.svg \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/syn.svg"
+  for size in 16 24 32 48 64 128 256 512; do
+    install -Dm644 "assets/icons/hicolor/${size}x${size}/apps/syn.png" \
+      "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/syn.png"
+  done
+
+  install -Dm755 /dev/stdin "$pkgdir/usr/bin/syn-kitty" <<'EOF'
+#!/bin/sh
+exec kitty --class syn --title SYN -e syn "$@"
+EOF
+
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/syn.desktop" <<'EOF'
+[Desktop Entry]
+Name=SYN Reproductor
+Comment=Reproductor local TUI
+Exec=syn-kitty
+Icon=syn
+Terminal=false
+Type=Application
+Categories=Audio;Music;Player;
+StartupWMClass=syn
+EOF
+}

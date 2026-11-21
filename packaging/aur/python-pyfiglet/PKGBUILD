@@ -1,0 +1,22 @@
+# Maintainer: synestrio <h73212653@users.noreply.github.com>
+pkgname=python-pyfiglet
+pkgver=1.0.4
+pkgrel=1
+pkgdesc="Pure-python FIGlet implementation"
+arch=('any')
+url="https://github.com/pwaller/pyfiglet"
+license=('MIT')
+depends=('python')
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+source=("https://files.pythonhosted.org/packages/source/p/pyfiglet/pyfiglet-$pkgver.tar.gz")
+sha256sums=('db9c9940ed1bf3048deff534ed52ff2dafbbc2cd7610b17bb5eca1df6d4278ef')
+
+build() {
+  cd "pyfiglet-$pkgver"
+  python -m build --wheel --no-isolation
+}
+
+package() {
+  cd "pyfiglet-$pkgver"
+  python -m installer --destdir="$pkgdir" dist/*.whl
+}
