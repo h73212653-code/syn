@@ -7,7 +7,8 @@ Verificado con `SHA256SUMS` (245 MB en total).
 
 | Carpeta/archivo | Qué es |
 | --- | --- |
-| `syn/` | Código del proyecto, sin `.venv` |
+| `syn/` | Código de SYN, sin `.venv` |
+| `synget/` | Código de SYNGET (descargador), sin `.venv` |
 | `syn.bundle` | Historial git completo (restaurar sin red) |
 | `config/niri/` | Tu config de niri (incluye `dms/` y `syn.kdl`) |
 | `config/kitty/` | `kitty.conf` con `background_opacity 0.75` |
@@ -73,6 +74,18 @@ cd ~/syn
 ./setup-niri.sh        # regla syn.kdl, include y opacidad
 niri validate          # debe salir sin errores
 ```
+
+## 5b. Instalar SYNGET (descargador de música)
+
+```bash
+sudo pacman -S --needed ffmpeg
+cp -r syn-backup-2026-11-21/synget ~/synget
+cd ~/synget
+./install.sh
+```
+
+Opcional, configuración propia en `~/.config/synget/config.toml` (hay una
+plantilla en `config.example.toml` del repo).
 
 ## 6. Comprobar
 

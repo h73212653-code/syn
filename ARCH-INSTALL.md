@@ -126,6 +126,19 @@ binds {
 }
 ```
 
+## Instalar SYNGET (descargador de música)
+
+```bash
+sudo pacman -S --needed ffmpeg
+git clone https://github.com/h73212653-code/synget.git ~/synget
+cd ~/synget
+./install.sh
+```
+
+SYNGET baja audio de YouTube a `~/Musica` con etiquetas y carátula, listo para
+que SYN lo reproduzca. Config opcional en `~/.config/synget/config.toml`
+(plantilla en `config.example.toml`).
+
 ## Comprobaciones finales
 
 ```bash
