@@ -137,6 +137,8 @@ if [[ "$CON_APT" -eq 1 ]]; then
     if [[ "$CON_KITTY" -eq 1 ]]; then
         opcional kitty
     fi
+    # ffmpeg decodifica M4A/AAC; sin él, esos archivos no se pueden abrir.
+    opcional ffmpeg
     if command -v pactl >/dev/null 2>&1; then
         if pactl info 2>/dev/null | grep -qi "pipewire"; then
             opcional pipewire-audio-client-libraries

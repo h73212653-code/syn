@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
+from .library import AUDIO_EXTENSIONS
+
 APP_VERSION = "1.4.2"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PROJECT_CONFIG = PROJECT_ROOT / "config.toml"
@@ -44,7 +46,6 @@ def _default_music_dir() -> Path:
     otros se crea sin tilde. Se prefiere la primera si contiene audio.
     """
     candidates = [Path.home() / "Música", Path.home() / "Musica"]
-    extensions = {".mp3", ".flac", ".wav", ".ogg"}
     first_existing: Path | None = None
 
     for candidate in candidates:
@@ -54,7 +55,7 @@ def _default_music_dir() -> Path:
             first_existing = candidate
         try:
             if any(
-                item.is_file() and item.suffix.lower() in extensions
+                item.is_file() and item.suffix.lower() in AUDIO_EXTENSIONS
                 for item in candidate.rglob("*")
             ):
                 return candidate
@@ -71,6 +72,12 @@ class Config:
     music_dir: Path
     recursive: bool = True
     theme_index: int = 0
+    game_mode: bool = False
+    covers: bool = True
+
+
+def _truthy(value: object) -> bool:
+    return str(value).strip().casefold() in {"1", "true", "yes", "on", "si", "sí"}
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -88,6 +95,16 @@ def _build_parser() -> argparse.ArgumentParser:
         "--no-recursive",
         action="store_true",
         help="No buscar dentro de las subcarpetas.",
+    )
+    parser.add_argument(
+        "--game-mode",
+        action="store_true",
+        help="Arranca en modo ligero: sin carátulas, logo, animaciones ni letras.",
+    )
+    parser.add_argument(
+        "--no-covers",
+        action="store_true",
+        help="No carga carátulas (mantiene el resto de la interfaz normal).",
     )
     parser.add_argument(
         "--version",
@@ -121,4 +138,21 @@ def load_config(argv: Sequence[str] | None = None) -> Config:
     if args.no_recursive:
         recursive = False
 
-    return Config(music_dir=music_dir, recursive=recursive, theme_index=theme_index)
+    game_mode = _truthy(values.get("game_mode", False)) or _truthy(
+        os.environ.get("SYN_GAME_MODE", "")
+    )
+    covers = _truthy(values.get("covers", True)) and not _truthy(
+        os.environ.get("SYN_NO_COVERS", "")
+    )
+    if args.game_mode:
+        game_mode = True
+    if args.no_covers:
+        covers = False
+
+    return Config(
+        music_dir=music_dir,
+        recursive=recursive,
+        theme_index=theme_index,
+        game_mode=game_mode,
+        covers=covers,
+    )

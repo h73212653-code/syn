@@ -32,6 +32,7 @@ sudo pacman -S --needed --noconfirm \
     pipewire-pulse \
     git \
     libpulse \
+    ffmpeg \
     base-devel
 
 # ------------------------------------------------------------------ 2. Entorno virtual

@@ -9,7 +9,9 @@ from typing import Iterable
 
 from mutagen import File as MutagenFile
 
-AUDIO_EXTENSIONS = frozenset({".mp3", ".flac", ".wav", ".ogg"})
+AUDIO_EXTENSIONS = frozenset(
+    {".mp3", ".flac", ".wav", ".ogg", ".opus", ".m4a"}
+)
 UNKNOWN_ARTIST = "Artista desconocido"
 UNKNOWN_ALBUM = "Álbum desconocido"
 

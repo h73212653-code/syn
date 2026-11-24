@@ -11,6 +11,13 @@ os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
 import pygame  # noqa: E402  (el orden de importación es intencional)
 
+from .transcode import (  # noqa: E402
+    FALLBACK_EXTENSIONS,
+    TranscodeError,
+    needs_transcode,
+    transcode_to_flac,
+)
+
 
 class PlaybackState(str, Enum):
     STOPPED = "stopped"
@@ -112,9 +119,29 @@ class Player:
 
         try:
             pygame.mixer.music.stop()
-            pygame.mixer.music.load(str(path))
+            source = path
+            if needs_transcode(path):
+                source = transcode_to_flac(path)
+            try:
+                pygame.mixer.music.load(str(source))
+            except Exception:
+                # Opus suele sonar directo, pero si la build de SDL_mixer no
+                # lo trae, se decodifica a FLAC y se reintenta.
+                if (
+                    source is not path
+                    or path.suffix.lower() not in FALLBACK_EXTENSIONS
+                ):
+                    raise
+                source = transcode_to_flac(path)
+                pygame.mixer.music.load(str(source))
             self._apply_volume()
             pygame.mixer.music.play()
+        except TranscodeError as exc:
+            try:
+                pygame.mixer.music.stop()
+            except Exception:
+                pass
+            raise PlaybackError(str(exc)) from exc
         except Exception as exc:
             try:
                 pygame.mixer.music.stop()

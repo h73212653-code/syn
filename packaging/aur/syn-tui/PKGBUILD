@@ -17,6 +17,7 @@ depends=(
   'python-jeepney'
   'kitty'
 )
+optdepends=('ffmpeg: decodificar audio M4A/AAC')
 makedepends=('python-build' 'python-installer' 'python-hatchling')
 source=("$url/archive/v$pkgver/syn-$pkgver.tar.gz")
 sha256sums=('30e9d882a06e08e227f6b4e2eab1c866787552f2fa02ae6a656a109ebed3dfe6')

@@ -469,6 +469,9 @@ class MprisServer:
                 "audio/flac",
                 "audio/ogg",
                 "audio/wav",
+                "audio/opus",
+                "audio/mp4",
+                "audio/x-m4a",
             ]),
         }
 

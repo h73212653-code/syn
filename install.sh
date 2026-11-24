@@ -18,10 +18,10 @@ fi
 # 1. Detectar gestor de paquetes
 if command -v pacman >/dev/null 2>&1; then
     echo "==> Detectado Arch/CachyOS (pacman)"
-    sudo pacman -S --needed --noconfirm kitty python python-pip pipewire pipewire-pulse git base-devel
+    sudo pacman -S --needed --noconfirm kitty python python-pip pipewire pipewire-pulse git base-devel ffmpeg
 elif command -v dnf >/dev/null 2>&1; then
     echo "==> Detectado Fedora/Nobara (dnf)"
-    sudo dnf install -y kitty python3 python3-pip pipewire pipewire-pulseaudio git @development-tools
+    sudo dnf install -y kitty python3 python3-pip pipewire pipewire-pulseaudio git @development-tools ffmpeg
 else
     echo "!! No se detectó un gestor de paquetes conocido (pacman/apt/dnf)."
     echo "!! Asegúrate de tener instalados: kitty, python3, pip, y pipewire."

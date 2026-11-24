@@ -1,7 +1,12 @@
 # Configuración de SYN
 # Puedes sobrescribir estos valores con variables de entorno o argumentos CLI:
 #   SYN_MUSIC_DIR=~/otra-carpeta syn
+#   SYN_GAME_MODE=1 syn
 #   syn --music-dir ~/otra-carpeta --no-recursive
+#   syn --game-mode      (modo ligero, sin gráficos)
+#   syn --no-covers      (sin carátulas)
 
 music_dir = "~/Musica"
 recursive = true
+game_mode = false
+covers = true

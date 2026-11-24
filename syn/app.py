@@ -5,9 +5,8 @@ from __future__ import annotations
 import unicodedata
 from bisect import bisect_right
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from PIL import Image as PILImage
 from rich.markup import escape
 from rich.text import Text
 from textual import events
@@ -17,7 +16,6 @@ from textual.color import Gradient
 from textual.containers import Container, Horizontal
 from textual.widgets import Input, Label, OptionList, ProgressBar, Static
 
-from .artwork import create_placeholder, load_cover
 from .config import Config
 from .lyrics import LyricLine, Lyrics, fetch_lyrics_data
 from .theme import ThemeManager
@@ -31,7 +29,12 @@ from .mpris import (
     track_object_path,
 )
 from .player import PlaybackError, PlaybackState, Player
-from .widgets import CoverStage, TrackList, build_logo
+from .widgets import TrackList
+
+if TYPE_CHECKING:
+    from PIL import Image as PILImage
+
+    from .cover_widget import CoverStage
 
 FOOTER = (
     "[b #67e8f9]Espacio[/] [#94a3b8]pausa[/]  "
@@ -42,6 +45,7 @@ FOOTER = (
     "[b #f0abfc]m[/] [#94a3b8]mudo[/]  "
     "[b #f0abfc]t[/] [#94a3b8]fondo[/]  "
     "[b #f0abfc]l[/] [#94a3b8]letras[/]  "
+    "[b #67e8f9]g[/] [#94a3b8]gaming[/]  "
     "[b #67e8f9]/[/] [#94a3b8]buscar[/]  "
     "[b #67e8f9]q[/] [#94a3b8]salir[/]"
 )
@@ -52,6 +56,17 @@ FOOTER_ON = FOOTER.replace(
 ).replace(
     "[b #f0abfc]l[/] [#94a3b8]letras[/]",
     "[b #67e8f9]l[/] [#67e8f9]letras ON[/]",
+)
+
+GAME_FOOTER = (
+    "[b #67e8f9]Espacio[/] [#94a3b8]pausa[/]  "
+    "[b #f0abfc]Enter[/] [#94a3b8]play[/]  "
+    "[b #67e8f9]n/p[/] [#94a3b8]pista[/]  "
+    "[b #f0abfc]←/→[/] [#94a3b8]carpeta[/]  "
+    "[b #67e8f9]y/u[/] [#94a3b8]vol[/]  "
+    "[b #f0abfc]m[/] [#94a3b8]mudo[/]  "
+    "[b #67e8f9]g[/] [#94a3b8]normal[/]  "
+    "[b #67e8f9]q[/] [#94a3b8]salir[/]"
 )
 
 
@@ -127,6 +142,7 @@ class SynApp(App[None]):
         Binding("m", "toggle_mute", "Silenciar", show=False),
         Binding("t", "toggle_transparency", "Transparencia", show=False),
         Binding("l", "toggle_lyrics", "Letras", show=True),
+        Binding("g", "toggle_gaming", "Gaming Mode", show=True),
         Binding("slash", "search", "Buscar", show=True),
         Binding("ctrl+f", "search", "Buscar", show=False),
         Binding("escape", "close_search", "Cerrar búsqueda", show=False),
@@ -168,12 +184,25 @@ class SynApp(App[None]):
         self._active_gradient = Gradient.from_colors(*self.theme_manager.get_current().gradient)
         self._paused_gradient = Gradient.from_colors("#334155", "#64748b")
         self._logo_key: tuple[int, int] | None = None
+        self._gaming = config.game_mode
+        self._covers = config.covers
+        self._cover_stage: CoverStage | None = None
 
     # ------------------------------------------------------------------ UI
     def compose(self) -> ComposeResult:
         with Horizontal(id="top"):
             with Container(id="now-playing"):
-                yield CoverStage(id="cover-stage")
+                with Container(id="cover-slot"):
+                    if self._covers and not self._gaming:
+                        # Import perezoso: en Gaming Mode no se carga Pillow ni
+                        # textual-image, ni siquiera al construir la interfaz.
+                        # Si la terminal no admite imágenes, SYN abre igual.
+                        try:
+                            from .cover_widget import CoverStage
+                        except Exception:
+                            CoverStage = None  # type: ignore[assignment]
+                        if CoverStage is not None:
+                            yield CoverStage(id="cover-stage")
                 with Container(id="cover-meta"):
                     yield Label(
                         "Cargando…",
@@ -197,7 +226,7 @@ class SynApp(App[None]):
                     "[#94a3b8]Reproductor local[/]",
                     id="logo-title",
                 )
-                yield Static(build_logo(), id="logo")
+                yield Static("", id="logo")
                 with Horizontal(id="library-heading"):
                     yield Static("Música →", id="music-heading")
                     yield Static("Buscando…", id="track-count")
@@ -223,15 +252,26 @@ class SynApp(App[None]):
                 )
                 yield Label("--:--", id="time-total")
                 yield Label("Vol 100%", id="volume-label")
-            yield Static(FOOTER, id="footer")
+            yield Static(
+                GAME_FOOTER if self._gaming else FOOTER,
+                id="footer",
+            )
 
     def on_mount(self) -> None:
+        if self._gaming:
+            self.screen.add_class("game-mode")
+        if self._covers_visible():
+            try:
+                self._cover_stage = self.query_one("#cover-stage")
+            except Exception:
+                self._cover_stage = None
         self.mpris.start()
         self.set_interval(1.0, self._tick)
         self.query_one("#track-list", TrackList).focus()
         self._update_volume_ui()
         self._apply_theme()
-        self.call_after_refresh(self._update_logo)
+        if not self._gaming:
+            self.call_after_refresh(self._update_logo)
 
         if not self.config.music_dir.is_dir():
             self._show_empty_state(
@@ -250,11 +290,14 @@ class SynApp(App[None]):
         self._scan_library()
 
     def on_resize(self, event: events.Resize) -> None:
-        self.call_after_refresh(self._update_logo)
+        if not self._gaming:
+            self.call_after_refresh(self._update_logo)
         self.call_after_refresh(self._refresh_lyrics)
 
     def _update_logo(self) -> None:
         """Elige el logo más grande que quepa en el panel derecho."""
+        if self._gaming:
+            return
         try:
             panel = self.query_one("#library-panel", Container)
         except Exception:
@@ -271,10 +314,30 @@ class SynApp(App[None]):
         if key == self._logo_key:
             return
 
+        from .visuals import build_logo
+
         self._logo_key = key
         self.query_one("#logo", Static).update(
             build_logo(max_width=width, max_height=max_height)
         )
+
+    def _covers_visible(self) -> bool:
+        """Las carátulas solo se procesan en la interfaz normal."""
+        return self._covers and not self._gaming
+
+    async def _mount_cover_stage(self) -> None:
+        """Crea la carátula al salir de Gaming Mode (import perezoso)."""
+        if self._cover_stage is not None:
+            return
+        try:
+            from .cover_widget import CoverStage
+
+            slot = self.query_one("#cover-slot", Container)
+            stage = CoverStage(id="cover-stage")
+            await slot.mount(stage)
+        except Exception:
+            return
+        self._cover_stage = stage
 
     def on_unmount(self) -> None:
         self._closing = True
@@ -576,8 +639,11 @@ class SynApp(App[None]):
 
         # La carátula queda lista antes de publicar la pista por MPRIS: así la
         # isla no arranca su búsqueda en iTunes (1 s) ni muestra otra portada.
-        self._cover_art_url = publish_artwork(track)
-        self._load_cover_async(track)
+        if self._covers_visible():
+            self._cover_art_url = publish_artwork(track)
+            self._load_cover_async(track)
+        else:
+            self._cover_art_url = ""
 
         if self._lyrics_visible:
             self._load_lyrics_async(track)
@@ -850,8 +916,45 @@ class SynApp(App[None]):
             self.remove_class("transparent")
             self.notify("Transparencia DESACTIVADA")
 
+    async def action_toggle_gaming(self) -> None:
+        """Alterna entre la interfaz normal y el modo ligero."""
+        self._gaming = not self._gaming
+
+        if self._gaming:
+            self.screen.add_class("game-mode")
+            self._lyrics_visible = False
+            self._lyrics_token += 1
+            self._cover_token += 1
+            self._cover_art_url = ""
+            self.query_one("#lyrics-panel", Static).add_class("hidden")
+            self.query_one("#footer", Static).update(GAME_FOOTER)
+            self.query_one("#logo", Static).update("")
+            self._logo_key = None
+
+            if self._cover_stage is not None:
+                self._cover_stage.clear_artwork()
+                await self._cover_stage.remove()
+                self._cover_stage = None
+
+            self._update_mpris()
+            self.notify("Gaming Mode ACTIVADO · sin carátulas ni letras")
+            return
+
+        self.screen.remove_class("game-mode")
+        self.query_one("#footer", Static).update(FOOTER)
+        if self._covers:
+            await self._mount_cover_stage()
+            if self.current_index is not None and self.tracks:
+                self._load_cover_async(self.tracks[self.current_index])
+        self.call_after_refresh(self._update_logo)
+        self.notify("Gaming Mode DESACTIVADO")
+
     def action_toggle_lyrics(self) -> None:
         """Muestra u oculta el panel de letras."""
+        if self._gaming:
+            self.notify("Las letras están desactivadas en Gaming Mode", timeout=3)
+            return
+
         self._lyrics_visible = not self._lyrics_visible
         lyrics_panel = self.query_one("#lyrics-panel", Static)
 
@@ -1157,6 +1260,8 @@ class SynApp(App[None]):
 
     def _prewarm_tracks(self, tracks: list[Track]) -> None:
         """Prepara carátulas de una lista corta (carpeta o resultados)."""
+        if not self._covers_visible():
+            return
         pending = list(tracks)
 
         def worker() -> None:
@@ -1175,10 +1280,14 @@ class SynApp(App[None]):
         )
 
     def _load_cover_async(self, track: Track) -> None:
+        if not self._covers_visible():
+            return
         self._cover_token += 1
         token = self._cover_token
 
         def worker() -> None:
+            from .artwork import create_placeholder, load_cover
+
             try:
                 artwork = load_cover(track)
             except Exception:
@@ -1198,10 +1307,14 @@ class SynApp(App[None]):
         )
 
     def _load_placeholder_async(self) -> None:
+        if not self._covers_visible():
+            return
         self._cover_token += 1
         token = self._cover_token
 
         def worker() -> None:
+            from .artwork import create_placeholder
+
             try:
                 artwork = create_placeholder(None)
             except Exception:
@@ -1224,6 +1337,12 @@ class SynApp(App[None]):
     ) -> None:
         if self._closing or token != self._cover_token:
             return
-        self.query_one("#cover-stage", CoverStage).set_artwork(artwork)
+        if not self._covers_visible() or self._cover_stage is None:
+            return
+        try:
+            self._cover_stage.set_artwork(artwork)
+        except Exception:
+            # Una terminal sin soporte de imágenes no debe tumbar SYN.
+            return
         self._cover_art_url = art_url
         self._update_mpris()

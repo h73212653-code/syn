@@ -22,7 +22,7 @@
 Reproductor de música local ultraligero y elegante para la terminal, construido con **Textual** y diseñado para **Kitty**. 
 
 - 🖼️ **Protocolo Gráfico Nativo (TGP):** Carátulas en alta resolución directamente en tu terminal.
-- 🎵 **Soporte Universal:** MP3, FLAC, WAV y OGG con extracción de metadatos mediante **Mutagen**.
+- 🎵 **Soporte Universal:** MP3, FLAC, WAV, OGG, Opus y M4A con extracción de metadatos mediante **Mutagen**.
 - 🔎 **Búsqueda global:** pulsa `/` y filtra por título, artista, álbum o carpeta sin importar dónde esté la canción.
 - 🎤 **Letras sincronizadas:** con `l` se resalta la línea que suena y el panel se desplaza solo (si la versión coincide).
 - ⚡ **Alto Rendimiento:** Consumo mínimo de CPU y RAM, con repintado inteligente bajo demanda.
@@ -64,7 +64,7 @@ cd ~/syn
 El instalador hace todo, pero si prefieres ver los requisitos:
 ```bash
 sudo apt update
-sudo apt install python3 python3-venv python3-pip kitty git
+sudo apt install python3 python3-venv python3-pip kitty git ffmpeg
 ```
 Luego:
 ```bash
@@ -101,13 +101,13 @@ sudo apt update && sudo apt install python3.12 python3.12-venv
 ### Instalación en Fedora / Nobara
 Requisitos del sistema:
 ```bash
-sudo dnf install kitty python3 python3-pip pipewire pipewire-pulseaudio git @development-tools
+sudo dnf install kitty python3 python3-pip pipewire pipewire-pulseaudio git @development-tools ffmpeg
 ```
 
 ### Instalación en CachyOS / Arch Linux
 CachyOS usa `pacman`:
 ```bash
-sudo pacman -S --needed --noconfirm kitty python python-pip pipewire pipewire-pulse git libpulse base-devel
+sudo pacman -S --needed --noconfirm kitty python python-pip pipewire pipewire-pulse git libpulse base-devel ffmpeg
 ```
 
 ---
@@ -135,15 +135,55 @@ También puedes ejecutarlo sin instalarlo:
 
 ## 📊 Consumo
 
-Medido en Fedora/CachyOS con Kitty, después del arranque:
+Medido con `tools/benchmark.py` en Arch Linux (Intel i7-10510U, 8 hilos),
+ventana de 120×40, biblioteca de 120 pistas y ventanas de muestreo de 10 s:
 
-| Estado | CPU | RAM |
-| --- | ---: | ---: |
-| Abierto en reposo | ~0.07% | ~81 MB |
-| Reproduciendo MP3 (80×24) | ~1.4% | ~98 MB |
-| Reproduciendo en ventana grande | ~2–4% | ~98 MB |
-| En pausa | ~0.7% | ~98 MB |
-| Cerrado | 0% | 0 MB |
+| Estado | SYN 1.4.2 | Normal | Gaming Mode |
+| --- | ---: | ---: | ---: |
+| Abierto en reposo | 80,1 MB · ~0,1 % | 79,6 MB · ~0,1 % | **58,5 MB** · ~0,1 % |
+| Reproduciendo | 98,0 MB · ~0,8 % | 97,7 MB · ~0,8 % | **60,9 MB** · ~0,8 % |
+
+El Gaming Mode arrancado con `syn --game-mode` ahorra un **27 % de RAM en
+reposo** y un **38 % reproduciendo**, porque no carga Pillow, textual-image ni
+pyfiglet. Pulsar `g` en caliente libera unos 22 MB, pero los módulos ya
+importados siguen en memoria; para el consumo mínimo hay que arrancar
+directamente en modo ligero.
+
+### Medir tu propio equipo
+
+```bash
+.venv/bin/python tools/benchmark.py --label "mi equipo"
+.venv/bin/python tools/benchmark.py --music-dir ~/Música --gaming
+.venv/bin/python tools/benchmark.py --start-in-gaming --json /tmp/syn-gaming.json
+```
+
+La prueba arranca SYN real en un pseudo-terminal, reproduce una pista y
+muestrea CPU y RSS desde `/proc`. Usa el driver `dummy` de SDL para no hacer
+ruido y que el resultado no dependa del servidor de sonido. Compara siempre
+mediciones hechas en la misma máquina y con la misma biblioteca.
+
+---
+
+## 🎮 Gaming Mode
+
+Pensado para jugar sin que el reproductor compita por CPU, RAM o disco:
+
+```bash
+syn --game-mode      # arranca ligero
+syn --no-covers      # interfaz normal, pero sin carátulas
+```
+
+| | Interfaz normal | Gaming Mode |
+| :--- | :---: | :---: |
+| Carátulas y portadas generadas | ✅ | ❌ |
+| Logo y preparación de carátulas | ✅ | ❌ |
+| Letras sincronizadas | ✅ | ❌ |
+| Lista, búsqueda, progreso y volumen | ✅ | ✅ |
+| MPRIS y teclas multimedia | ✅ | ✅ |
+
+Dentro de SYN, `g` alterna entre ambos modos sin reiniciar. Al volver al modo
+normal se recarga solo la carátula de la pista actual. El Gaming Mode mantiene
+la reproducción, el control de volumen, la búsqueda y los controles MPRIS.
 
 ---
 
@@ -153,6 +193,8 @@ La carpeta configurada por defecto es:
 ```toml
 music_dir = "~/Musica"
 recursive = true
+game_mode = false
+covers = true
 ```
 
 Se puede cambiar de varias formas:
@@ -161,7 +203,13 @@ syn --music-dir ~/Música --no-recursive
 SYN_MUSIC_DIR=~/Música syn
 ```
 
-La búsqueda acepta **MP3, FLAC, WAV y OGG**. Las carátulas se extraen de las etiquetas del archivo.
+La búsqueda acepta **MP3, FLAC, WAV, OGG, Opus y M4A**. Las carátulas se extraen de las etiquetas del archivo.
+
+> **M4A/AAC** se decodifica a FLAC con `ffmpeg`, porque SDL_mixer no lo
+> reproduce directamente. La primera reproducción tarda un segundo extra y la
+> conversión queda en `~/.cache/syn/transcode`; después es instantánea.
+> Si no tienes `ffmpeg`: `sudo pacman -S ffmpeg`, `sudo apt install ffmpeg`
+> o `sudo dnf install ffmpeg`.
 
 ---
 
@@ -211,6 +259,7 @@ yt-dlp -x --audio-format mp3 --audio-quality 0 --embed-thumbnail --embed-metadat
 | `n` / `p` | Siguiente / anterior |
 | `←` / `→` | Cambiar de carpeta (pestañas automáticas) |
 | `l` | Mostrar / ocultar la letra de la canción |
+| `g` | Alternar Gaming Mode (sin carátulas, logo ni letras) |
 | `y` / `u` | Subir / bajar el volumen (5%) |
 | `m` | Silenciar / restaurar sonido |
 | `t` | Activar / desactivar fondo transparente |

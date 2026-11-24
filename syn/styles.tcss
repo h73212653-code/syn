@@ -19,6 +19,12 @@ Screen.transparent {
     background: transparent !important;
 }
 
+#cover-slot {
+    width: 100%;
+    height: 1fr;
+    align: center middle;
+}
+
 #cover-stage {
     width: 100%;
     height: 1fr;
@@ -345,4 +351,45 @@ MusicDirScreen {
 
 #lyrics-panel.hidden {
     display: none;
+}
+
+/* --------------------------------------------------------------------------
+   Gaming Mode (tecla g o argumento --game-mode)
+   -------------------------------------------------------------------------- */
+Screen.game-mode #now-playing {
+    width: 32%;
+    min-width: 22;
+    padding: 1 1 0 1;
+    align: center middle;
+}
+
+Screen.game-mode #cover-slot,
+Screen.game-mode #logo,
+Screen.game-mode #logo-title,
+Screen.game-mode #lyrics-panel {
+    display: none;
+}
+
+Screen.game-mode #cover-meta {
+    height: auto;
+    margin-top: 0;
+    padding-top: 1;
+}
+
+Screen.game-mode #library-panel {
+    padding: 1 1;
+}
+
+Screen.game-mode #bottom {
+    height: 4;
+}
+
+Screen.game-mode #footer {
+    height: 1;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+Screen.game-mode #track-count {
+    color: #64748b;
 }

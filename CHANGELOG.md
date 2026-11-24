@@ -1,5 +1,34 @@
 # Changelog
 
+## Sin publicar
+
+### Rendimiento
+- **Gaming Mode** (`syn --game-mode` o tecla `g`): interfaz ligera sin
+  carátulas, logo, letras ni trabajo de imágenes en segundo plano. Mantiene
+  reproducción, volumen, búsqueda, lista y MPRIS. Medido con el nuevo
+  `tools/benchmark.py`: **80,1 → 58,5 MB en reposo** y **98,0 → 60,9 MB
+  reproduciendo** (fixture de 120 pistas, ventanas de 10 s).
+- **Importación perezosa**: Pillow, textual-image y pyfiglet solo se cargan en
+  la interfaz normal. Al arrancar en Gaming Mode no se importan en absoluto.
+- **`--no-covers`** y `covers = false`: quita las carátulas sin renunciar al
+  logo ni a las letras; tampoco carga Pillow.
+- **Banco de pruebas reproducible** (`tools/benchmark.py`): arranca SYN real en
+  un pseudo-terminal y mide CPU/RAM en reposo, reproduciendo y en Gaming Mode.
+- El logo ya no se renderiza en `compose()`: se calcula tras el primer repintado
+  y solo si el modo normal lo necesita.
+
+### Nuevas funciones
+- **Opus y M4A**: la biblioteca reconoce `.opus` y `.m4a` además de MP3,
+  FLAC, WAV y OGG. Opus se reproduce de forma nativa; M4A/AAC (iTunes,
+  Apple Music, grabaciones de móvil) se decodifica a FLAC con `ffmpeg` la
+  primera vez y queda en caché (`~/.cache/syn/transcode`), así que las
+  siguientes reproducciones son instantáneas. Si falta `ffmpeg`, SYN muestra
+  un aviso con el comando de instalación en lugar de fallar en silencio.
+- Las carátulas y etiquetas de M4A/Opus se siguen leyendo con Mutagen, y
+  MPRIS anuncia los tipos `audio/mp4`, `audio/x-m4a` y `audio/opus`.
+- Los instaladores de Arch/CachyOS, Fedora y Debian/Ubuntu instalan `ffmpeg`
+  como dependencia opcional.
+
 ## 1.4.2 — 2026-11-20
 
 ### Nuevas funciones
