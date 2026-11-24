@@ -58,6 +58,21 @@ cd ~/syn
 
 ---
 
+## 📥 Descarga música integrada con `synget`
+
+SYN incluye soporte para descargar música directamente desde YouTube en alta calidad (**Opus / M4A**) utilizando **`synget`**:
+
+```bash
+# Descarga rápida de un enlace o búsqueda directamente a ~/Musica
+synget "https://www.youtube.com/watch?v=..."
+synget "tu artista o canción favorita"
+
+# O abre la TUI interactiva de synget
+synget
+```
+
+---
+
 ## 📋 Guía Detallada de Instalación por Distro
 
 ### Instalación en Debian / Ubuntu
